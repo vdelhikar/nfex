@@ -38,13 +38,6 @@
 #include <math.h>
 
 void
-error(char *msg)
-{
-    fprintf(stderr, "%s\n", msg);
-    exit(0);
-}
-
-void
 report(char *fmt, ...)
 {
     va_list args;
@@ -89,6 +82,13 @@ ecalloc(size_t nmemb, size_t size)
     }
 
     return (p);
+}
+
+void
+error(char *msg)
+{
+    fprintf(stderr, "%s", msg);
+    exit(EXIT_FAILURE);
 }
 
 void

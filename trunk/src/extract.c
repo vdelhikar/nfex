@@ -47,7 +47,7 @@
 
 
 /*
- * called once for each packet, this funciton starts, updates, and closes
+ * called once for each packet, this function starts, updates, and closes
  * file extractions.  this is the one-stop-shop for all your file extraction 
  * needs
  */
@@ -154,7 +154,7 @@ uint16_t dst_prt, ncc_t *ncc)
         ncc->output_dir == NULL ? "" : ncc->output_dir, 
         getpid(), ncc->filenum, ext);
 
-    n = open(fname, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU);
+    n = open(fname, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     report("%s\n", fname);
 
     /** write out details to index file */
@@ -173,6 +173,7 @@ uint16_t dst_prt, ncc_t *ncc)
            ip_addr_d[0], ip_addr_d[1], ip_addr_d[2], ip_addr_d[3],
            ntohs(dst_prt), getpid(), ncc->filenum, ext);
 
+    fflush(ncc->indexfp);
     return (n);
 }
 
@@ -185,11 +186,9 @@ set_segment_marks(extract_list_t *elist, size_t size)
 {
     extract_list_t *eptr;
 
-//fprintf(stderr, "elist: %p elist->next %p size: %d\n", elist, elist->next, size);
-    for (eptr = elist; eptr != NULL; eptr = eptr->next)
+    for (eptr = elist; eptr; eptr = eptr->next)
     {
         eptr->segment.start = 0;
-//fprintf(stderr, "maxlen: %d nwritten: %d size: %d\n", eptr->fileid->maxlen, eptr->nwritten, size);
         if (eptr->fileid->maxlen - eptr->nwritten < size)
         {
             eptr->segment.end = eptr->fileid->maxlen - eptr->nwritten;
@@ -213,7 +212,7 @@ mark_footer(extract_list_t *elist, srch_results_t *footer)
      * given type this is to accommodate embedded document types.  Somebody 
      * may have differing needs so this may want to be reworked later...
      */
-    for (eptr = elist; eptr != NULL; eptr = eptr->next)
+    for (eptr = elist; eptr; eptr = eptr->next)
     {
         if (footer->fileid->id == eptr->fileid->id && 
             eptr->segment.start < footer->offset.start)
@@ -230,14 +229,17 @@ mark_footer(extract_list_t *elist, srch_results_t *footer)
 static void
 extract_segment(extract_list_t *elist, const uint8_t *data, ncc_t *ncc)
 {
-    size_t nbytes;
+    size_t c, nbytes;
 
     nbytes = elist->segment.end - elist->segment.start;
 
-    if (nbytes != write(elist->fd, data + elist->segment.start, nbytes))
+    if ((c = write(elist->fd, data + elist->segment.start, nbytes)) != nbytes)
     {
-        perror("error writing file");
-        return ; /** previously hard quit here; will this have sideeffects? */
+        fprintf(stderr, "error writing file (%d) wrote %ld of %ld bytes: %s", 
+            elist->fd, c, nbytes, strerror(errno));
+        return; 
+/** previously hard quit here; will this have sideeffects?
+add a flag to let higher logic know to bail on this one */
     }
     elist->nwritten += nbytes;
     sync();
