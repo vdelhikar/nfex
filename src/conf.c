@@ -39,7 +39,8 @@
 
 static int id;
 
-void config_type(char *ext, char *maxlength, char *hspec, char *fspec, void *a)
+void
+config_type(char *extension, char *maxlength, char *hspec, char *fspec, void *a)
 {
     unsigned long maxlen;
     ncc_t *ncc;
@@ -51,13 +52,18 @@ void config_type(char *ext, char *maxlength, char *hspec, char *fspec, void *a)
         error("Invalid maximum length in file format specifier");
     }
 
-    compile_srch(&(ncc->srch_machine), id, strdup(ext), maxlen, hspec, HEADER);
+    compile_srch(&(ncc->srch_machine), id, strdup(extension), maxlen, hspec, 
+            HEADER);
 
+    /** if a footer is specified in the confi file, compile it here */
     if (fspec)
     {
-        compile_srch(&(ncc->srch_machine), id, strdup(ext), maxlen, fspec, 
-            FOOTER);
+        compile_srch(&(ncc->srch_machine), id, strdup(extension), maxlen, 
+            fspec, FOOTER);
     }
     id++;
+    printf("%2d %s search code compiled (%ld byte max)\n", id, extension, 
+            maxlen);
 }
 
+/** EOF */

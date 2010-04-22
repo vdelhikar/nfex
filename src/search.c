@@ -42,28 +42,30 @@ void
 compile_srch(srch_node_t **srch_tree, int id, char *ext, unsigned long maxlen, 
 char *spec, spectype_t type)
 {
-    int i = 0, speclen;
+    int i, speclen;
     srch_node_t *node_ptr;
 
-    assert(srch_tree != NULL);
-    assert(spec != NULL);
+    assert(srch_tree);
+    assert(spec);
 
+    /** length of the raw HEADER or FOOTER as specified in config file */
     speclen = strlen(spec);
-
-    if (*srch_tree == NULL)
-    {
-        *srch_tree = new_srch_node(TABLE);
-    }
-
     if (speclen == 0)
     {
         return;
     }
 
+    /** is this the first node? */
+    if (*srch_tree == NULL)
+    {
+        *srch_tree = new_srch_node(TABLE);
+    }
+
+    i = 0;
     currlen = 0;
-    
     node_ptr = *srch_tree;
 
+    /** step through the HEADER or FOOTER and process it piece by piece */
     while (i < speclen)
     {
         if (spec[i] == '\\')
@@ -81,7 +83,7 @@ char *spec, spectype_t type)
                 case 'x':
                     if (i + 2 >= speclen)
                     {
-                        error("Invalid hexadecimal code infile type specifier");
+                        error("Invalid hex code in file type specifier");
                     }
                     else
                     {
@@ -129,18 +131,22 @@ char *spec, spectype_t type)
         i++;
     }
 
-    /* this assumes node_ptr is pointing to a COMPLETE node */
+    /** this assumes node_ptr is pointing to a COMPLETE node */
     node_ptr->data.fileid.len = currlen;
 }
+
 
 static srch_node_t *
 new_srch_node(srch_nodetype_t nodetype)
 {
-    srch_node_t *p = ecalloc(sizeof (srch_node_t), 1);
+    srch_node_t *p;
 
+    p           = ecalloc(sizeof (srch_node_t), 1);
     p->nodetype = nodetype;
+
     return (p);
 }
+
 
 static srch_node_t *
 add_simple(srch_node_t *node, uint8_t c, int remaining, int id, char *ext, 
@@ -149,12 +155,13 @@ unsigned long maxlen, spectype_t type)
     srch_node_t *newnode;
     srch_node_t *retval;
     
-    assert(node != NULL);
+    assert(node);
 
     currlen++;
-    
+
     if (remaining == 1)
-    {   /** if remaining is 1 then we need to point to a COMPLETE node */
+    {   
+        /** if remaining is 1 then we need to point to a COMPLETE node */
         newnode                     = new_srch_node(COMPLETE);
         newnode->spectype           = type;
         newnode->data.fileid.id     = id;
@@ -183,16 +190,17 @@ add_wildcard(srch_node_t *node, int remaining, int id, char *ext, unsigned long 
     srch_node_t *newnode;
     int i;
     
-    assert(node != NULL);
+    assert(node);
 
     currlen++;
-    
+
     if (remaining == 1)
-    {   /** if remaining is 1 then we need to point to a COMPLETE node */
-        newnode = new_srch_node(COMPLETE);
-        newnode->spectype = type;
-        newnode->data.fileid.id = id;
-        newnode->data.fileid.ext = ext;
+    {   
+        /** if remaining is 1 then we need to point to a COMPLETE node */
+        newnode                     = new_srch_node(COMPLETE);
+        newnode->spectype           = type;
+        newnode->data.fileid.id     = id;
+        newnode->data.fileid.ext    = ext;
         newnode->data.fileid.maxlen = maxlen;
         for (i = 0; i < 256; i++)
         {
@@ -230,12 +238,14 @@ size_t len)
     srch_results_t *retval = NULL;
     int i;
     
-    assert(tree != NULL);
-    assert(srchptr_list != NULL);
-    assert(buf != NULL);
+    assert(tree);
+    assert(srchptr_list);
+    assert(buf);
 
+    /** called once for every byte of data in the payload */
     for (i = 0; i < len; i++)
     {
+        /** can this be optimized, can we run on blocks of data? */
         update_search(tree, srchptr_list, &retval, buf[i], i); 
     }
 
@@ -247,27 +257,27 @@ add_srchptr(srchptr_list_t **srchptr_list, srch_node_t *node)
 {
     srchptr_list_t *ptr, *ptr2;
     
-    assert(srchptr_list != NULL);
-    assert(node != NULL);
+    assert(srchptr_list);
+    assert(node);
 
     ptr = ecalloc(1, sizeof (srchptr_list_t));
     ptr->next = *srchptr_list;
 
-    if (ptr->next != NULL)
+    if (ptr->next)
     {
         ptr->next->prev = ptr;
     }
     ptr->node = node;
     *srchptr_list = ptr;
-    for (ptr2 = ptr->next; ptr2 != NULL && ptr2 != ptr; ptr2 = ptr2->next)
-        ;
+
+    for (ptr2 = ptr->next; ptr2 && ptr2 != ptr; ptr2 = ptr2->next);
 }
 
 static void
 remv_srchptr(srchptr_list_t **srchptr_list, srchptr_list_t *sptr)
 {
-    assert(srchptr_list != NULL);
-    assert(sptr != NULL);
+    assert(srchptr_list);
+    assert(sptr);
 
     if (sptr->prev)
     {
@@ -304,13 +314,14 @@ update_search(srch_node_t *tree, srchptr_list_t **srchptr_list,
 srch_results_t **results, uint8_t c, int offset)
 {
     if (*srchptr_list)
-    {        /* start by updating existing threads */
+    {   
+        /** start by updating existing threads */
         srchptr_list_t *ptr;
         srchptr_list_t *nxt;
-        for (ptr = *srchptr_list; ptr != NULL; ptr = nxt)
+        for (ptr = *srchptr_list; ptr; ptr = nxt)
         {
             nxt = ptr->next;
-            if (ptr->node->data.table[c] != NULL)
+            if (ptr->node->data.table[c])
             {
                 srch_node_t *node = ptr->node->data.table[c];
                 switch (node->nodetype)
@@ -324,7 +335,7 @@ srch_results_t **results, uint8_t c, int offset)
                         remv_srchptr(srchptr_list, ptr);
                         break;
                     default:
-                        error("Barf! Unknown node type");
+                        error("Unknown node type");
                         break;
                 }
             }
@@ -354,7 +365,7 @@ srch_results_t **results, uint8_t c, int offset)
                 add_result(results, &node->data.fileid, node->spectype, offset);
                 break;
             default:
-                error("Barf! Unknown node type");
+                error("Unknown node type");
                 break;     
         }
     }
@@ -399,7 +410,7 @@ srch_results_t **results, uint8_t c, int offset)
                         free(ptr);
                         break;
                     default:
-                        error("Barf! Unknown node type");
+                        error("Unknown node type");
                         break;
                 }
             }
@@ -451,23 +462,28 @@ srch_results_t **results, uint8_t c, int offset)
             add_result(results, &node->data.fileid, node->spectype, offset);
             break;
         default:
-            error("Barf! Unknown node type");
+            error("Unknown node type");
             break;     
         }
     }
 }
 
 /* Add a result to a results list, allocating as needed */
-static void add_result(srch_results_t **results, fileid_t *fileid, spectype_t spectype, int offset)
+static void 
+add_result(srch_results_t **results, fileid_t *fileid, spectype_t spectype, 
+int offset)
 {
     srch_results_t **ptr, *prev = NULL;
 
-    assert(results != NULL);
+    assert(results);
 
     /* find the last element in the list, for setting prev */
-    for (ptr = results; *ptr != NULL && (*ptr)->next != NULL; ptr = &(*ptr)->next)
+    for (ptr = results; *ptr && (*ptr)->next != NULL; 
+        ptr = &(*ptr)->next)
         ;
-    if (*ptr != NULL) {
+
+    if (*ptr)
+    {
         prev = *ptr;
         ptr = &(*ptr)->next;
     }
@@ -481,15 +497,19 @@ static void add_result(srch_results_t **results, fileid_t *fileid, spectype_t sp
     (*ptr)->offset.end = offset;
 }
 
-void free_results_list(srch_results_t **results)
+void
+free_results_list(srch_results_t **results)
 {
     srch_results_t *rptr, *nxt;
 
-    assert(results != NULL);
+    assert(results);
 
-    for (rptr = *results; rptr != NULL; rptr = nxt) {
+    for (rptr = *results; rptr; rptr = nxt)
+    {
         nxt = rptr->next;
         free(rptr);
     }
     *results = NULL;
 }
+
+/* EOF */

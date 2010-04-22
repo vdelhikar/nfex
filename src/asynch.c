@@ -54,7 +54,7 @@ the_game(ncc_t *ncc)
         FD_SET(ncc->pcap_fd, &read_set);
 
         /** check the status of our file descriptors */
-        c = select(2, &read_set, 0, 0, NULL);
+        c = select(FD_SETSIZE, &read_set, 0, 0, NULL);
         if (c > 0)
         {
             /** input from the network */

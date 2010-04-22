@@ -102,7 +102,7 @@ main(int argc, char *argv[])
         }
     }
 
-    printf("nfex - network file extraction utility\n");
+    printf("nfex - realtime network file extraction engine\n");
     ncc = control_context_init(output_dir, yyinfname, device, capfname, flags,
             errbuf);
     if (ncc == NULL)
@@ -126,12 +126,12 @@ usage(char *progname)
 {
     printf("Usage: %s [OPTIONS] [[-d <DEVICE>] [-f <FILE>]]\n"
            "Valid options include:\n"
-           "  --file, -f <FILE>         to specify an input capture file instead of a device\n"
-           "  --device, -d <DEVICE>     to specify an input device (i.e. eth0)\n"
-           "  --config, -c <FILE>       use FILE as the config file\n"
-           "  --output, -o <DIRECTORY>  dump files to DIRECTORY instead of current directory\n"
-           "  --version, -v             display the version number of this program\n"
-           "  --help, -h                display this lovely screen\n", progname);
+           "  --file, -f <FILE>         specify an input capture file\n"
+           "  --device, -d <DEVICE>     to specify a network device\n"
+           "  --config, -c <FILE>       specify config file\n"
+           "  --output, -o <DIRECTORY>  dump files here instead of cwd\n"
+           "  --version, -v             display the version number\n"
+           "  --help, -h                this\n", progname);
     exit(1);    
 }
 

@@ -21,7 +21,7 @@ char *capfname, u_int16_t flags, char *errbuf)
     struct bpf_program filter;     /* hold compiled program */
     bpf_u_int32 mask;              /* subnet mask */
     bpf_u_int32 net;               /* ip */
-    char filter_app[] = "tcp or udp";
+    char filter_app[] = "tcp";
     struct termios term;
 
     /** gather all the memory we need for a control context */  
@@ -204,7 +204,7 @@ char *capfname, u_int16_t flags, char *errbuf)
         goto err;
     }
 
-    printf("initializing with:\noutput dir:\t%s\nconfig file:\t%s\n", 
+    printf("what we're working with:\noutput dir:\t%s\nconfig file:\t%s\n", 
         ncc->output_dir, ncc->yyinfname);
     if (ncc->device)
     {
