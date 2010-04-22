@@ -16,13 +16,12 @@ control_context_init(char *output_dir, char *yyinfname, char *device,
 char *capfname, u_int16_t flags, char *errbuf)
 {
     int f;
-    struct stat stat_info;
+    char *filter;
     ncc_t *ncc;
-    struct bpf_program filter;     /* hold compiled program */
-    bpf_u_int32 mask;              /* subnet mask */
-    bpf_u_int32 net;               /* ip */
-    char filter_app[] = "tcp";
     struct termios term;
+    bpf_u_int32 net, mask;
+    struct stat stat_info;
+    struct bpf_program filter_program;
 
     /** gather all the memory we need for a control context */  
     ncc = malloc(sizeof (ncc_t));
@@ -44,7 +43,7 @@ char *capfname, u_int16_t flags, char *errbuf)
     {
         if (stat(output_dir, &stat_info) == -1)
         {
-            if (mkdir(output_dir, S_IRWXU) == -1)
+            if (mkdir(output_dir, S_IRWXU|S_IRWXG|S_IRWXO) == -1)
             {
                 fprintf(stderr, "can't create output dir %s:%s\n", output_dir,
                     strerror(errno));
@@ -68,6 +67,7 @@ char *capfname, u_int16_t flags, char *errbuf)
             strerror(errno));
         goto err;
     }
+    printf("loading configuration file...\n");
     yyparse((void *)ncc);
 
     /** if a pcap file was specified, we go that route */
@@ -133,17 +133,19 @@ char *capfname, u_int16_t flags, char *errbuf)
         ncc->pcap_fd = pcap_fileno(ncc->p);
     }
 
+
+    filter = NFEX_PCAP_FILTER;
     /** compile and apply the filter */
-    if (pcap_compile(ncc->p, &filter, filter_app, 0, net) == -1)
+    if (pcap_compile(ncc->p, &filter_program, filter, 0, net) == -1)
     {
-        fprintf(stderr, "can't parse filter %s: %s\n", filter_app,
+        fprintf(stderr, "can't parse filter %s: %s\n", filter,
             pcap_geterr(ncc->p));
         goto err;
     }
 
-    if (pcap_setfilter(ncc->p, &filter) == -1)
+    if (pcap_setfilter(ncc->p, &filter_program) == -1)
     {
-        fprintf(stderr, "can't install filter %s: %s\n", filter_app,
+        fprintf(stderr, "can't install filter %s: %s\n", filter,
             pcap_geterr(ncc->p));
        goto err;
     }
@@ -213,9 +215,21 @@ char *capfname, u_int16_t flags, char *errbuf)
     else
     {
         printf("pcap file:\t%s\n", ncc->capfname);
+        printf("pcap filesize:\t%lld bytes\n", ncc->capfsize); 
     }
+    printf("pcap filter:\t%s\n", filter);
     printf("index file:\t%s\n", ncc->indexfname);
+    if (flags & NFEX_VERBOSE)
+    {
+        printf("verbosity on\n");
+    }
+    if (flags & NFEX_GEOIP)
+    {
+        printf("geoIP mode on\n");
+    }
+
     return (ncc);
+
 err:
     control_context_destroy(ncc);
     return (NULL);

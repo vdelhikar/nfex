@@ -39,6 +39,9 @@
 #define DEFAULT_CONFIG_FILE "/usr/local/etc/nfex.conf"
 #endif
 
+/** as we add more protocols this needs to change */
+#define NFEX_PCAP_FILTER "tcp"
+
 /* BEGIN MACROS */
 /** simple way to subtract timeval based timers */
 #define PTIMERSUB(tvp, uvp, vvp)                                             \
@@ -64,6 +67,8 @@ struct nfex_statistics
     u_int32_t total_packets;          /* total packets seen */
     u_int64_t total_bytes;            /* total bytes read */
     u_int32_t total_files;            /* total files extracted */
+    u_int32_t packet_errors;          /* packet-level errors */
+    u_int32_t extraction_errors;      /* extraction errors */
     struct timeval ts_start;          /* total uptime timestamp */
     struct timeval ts_last;           /* last file extracted timestamp */
     u_int32_t ip_last;                /* last packet seen ip */
@@ -79,6 +84,8 @@ struct nfex_control_context
     slist_t *sessions;                /* packet session list */
     struct termios term;              /* save terminal info to restore later */
     u_int16_t flags;                  /* control context flags */
+#define NFEX_VERBOSE 0x0001           /* toggle verbosity */
+#define NFEX_GEOIP   0x0002           /* toggle geoIP mode */
     FILE *log;                        /* logfile FILE descriptor */
     char yyinfname[128];
     srch_node_t *srch_machine;

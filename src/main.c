@@ -21,8 +21,8 @@ main(int argc, char *argv[])
 {
     int c;
     ncc_t *ncc;
-    u_int16_t flags = 0;
     char *device;
+    u_int16_t flags;
     char capfname[128];
     char yyinfname[128];
     char output_dir[128];
@@ -33,31 +33,13 @@ main(int argc, char *argv[])
         usage(argv[0]);
     }
 
+    flags = 0;
+    device = NULL;
     memset(capfname,   0, sizeof (capfname));
     memset(yyinfname,  0, sizeof (yyinfname));
     memset(output_dir, 0, sizeof (output_dir));
-    device = NULL;
-    while (1)
+    while ((c = getopt(argc, argv, "c:d:gf:o:hVv")) != EOF)
     {
-        int option_index = 0;
-        static struct option long_options[] =
-        {
-            {"file",    1, 0, 'f'},
-            {"device",  1, 0, 'd'},
-            {"config",  1, 0, 'c'},
-            {"output",  1, 0, 'o'},
-            {"version", 0, 0, 'v'},
-            {"help",    0, 0, 'h'},
-            {0, 0, 0, 0}
-        };
-
-        c = getopt_long(argc, argv, "f:d:o:c:hv", long_options, &option_index);
-
-        if (c == -1)
-        {
-            break;
-        }
-
         switch (c)
         {
             case 'f':
@@ -68,6 +50,9 @@ main(int argc, char *argv[])
                 break;
             case 'c':
                 strncpy(yyinfname, optarg, 127);
+                break;
+            case 'g':
+                flags |= NFEX_GEOIP;
                 break;
             case 'o':
                 if (optarg[strlen(optarg) - 1] != '/')
@@ -83,6 +68,9 @@ main(int argc, char *argv[])
                 break;
             case 'h':
                 usage(argv[0]);
+                break;
+            case 'V':
+                flags |= NFEX_VERBOSE;
                 break;
             case 'v':
                 printf("%s v%s\n", PACKAGE, VERSION);
@@ -124,14 +112,15 @@ main(int argc, char *argv[])
 void
 usage(char *progname)
 {
-    printf("Usage: %s [OPTIONS] [[-d <DEVICE>] [-f <FILE>]]\n"
-           "Valid options include:\n"
-           "  --file, -f <FILE>         specify an input capture file\n"
-           "  --device, -d <DEVICE>     to specify a network device\n"
-           "  --config, -c <FILE>       specify config file\n"
-           "  --output, -o <DIRECTORY>  dump files here instead of cwd\n"
-           "  --version, -v             display the version number\n"
-           "  --help, -h                this\n", progname);
+    printf("Usage: %s [OPTIONS] [[-d <DEVICE>] || [-f <FILE>]]\n"
+           "  -f <FILE>       specify an input capture file\n"
+           "  -d <DEVICE>     to specify a network device\n"
+           "  -c <FILE>       specify config file\n"
+           "  -g              toggle geoIP mode on\n"
+           "  -o <DIRECTORY>  dump files here instead of cwd\n"
+           "  -V              toggle verbose mode on\n"
+           "  -v              display the version number\n"
+           "  -h              this\n", progname);
     exit(1);    
 }
 

@@ -20,12 +20,13 @@ the_game(ncc_t *ncc)
     /** file extraction */
     while (ncc->capfname[1])
     {
-        c = pcap_dispatch(ncc->p, 10, process_packet, (u_char *)ncc);
+        c = pcap_dispatch(ncc->p, 100, process_packet, (u_char *)ncc);
         /** hand the keypress off be processed */
         switch (process_keypress(ncc))
         {
             case 2:
                 /** user hit 'q'uit */
+                printf("user quit\n");
                 return (2);
             default:
                 break;
@@ -40,6 +41,7 @@ the_game(ncc_t *ncc)
         {
             if (c == 0)
             {
+                /** no packets read, we must be done */
                 return (1);
             }
         }
@@ -104,18 +106,30 @@ process_keypress(ncc_t *ncc)
 
     switch (buf[0])
     {
-        case 'C':
+        case 'c':
             /* clear screen */
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             break;
-        case 'c':
+        case 'g':
+            if (ncc->flags & NFEX_GEOIP)
+            {
+                ncc->flags &= ~NFEX_GEOIP;
+                printf("geoIP mode on\n");
+            }
+            else
+            {
+                ncc->flags |= NFEX_GEOIP;
+                printf("geoIP mode off\n");
+            }
+            break;
+        case 'r':
             /* clear stats */
             /** FIXME: save uptime */
             memset(&ncc->stats, 0, sizeof (ncc->stats));
-            printf("statistics cleared\n");
+            printf("nfex statistics cleared\n");
             break;
         case 's':
             /* display statistics */
@@ -124,16 +138,30 @@ process_keypress(ncc_t *ncc)
         case 'q':
             /* quit program */
             return (2);
+        case 'V':
+            if (ncc->flags & NFEX_VERBOSE)
+            {
+                ncc->flags &= ~NFEX_VERBOSE;
+                printf("verbose mode off\n");
+            }
+            else
+            {
+                ncc->flags |= NFEX_VERBOSE;
+                printf("verbose mode on\n");
+            }
+            break;
         case 'v':
             printf("%s v%s\n", PACKAGE, VERSION);
             break;
         case '?':
             /* help */
             printf("\n-[command summary]-\n");
-            printf("[C]   - clear screen\n");
-            printf("[c]   - clear statistics\n");
+            printf("[c]   - clear screen\n");
+            printf("[g]   - toggle geoIP mode\n");
+            printf("[r]   - reset statistics\n");
             printf("[s]   - display statistics\n");
             printf("[q]   - quit\n");
+            printf("[V]   - toggle verbose mode\n");
             printf("[v]   - display program version\n");
             printf("[?]   - help\n");
             break;
@@ -149,7 +177,7 @@ stats(ncc_t *ncc)
     struct timeval r, e;
     u_int32_t day, hour, min, sec;
 
-    printf("statistics\n");
+    printf("nfex statistics\n");
     gettimeofday(&e, NULL);
     PTIMERSUB(&e, &(ncc->stats.ts_start), &r);
     convert_seconds((u_int32_t)r.tv_sec, &day, &hour, &min, &sec);
@@ -204,10 +232,12 @@ stats(ncc_t *ncc)
     printf("bytes churned:\t\t\t%lld\n", ncc->stats.total_bytes);
     if (ncc->capfname[0])
     {
-        printf("approximate progress:\t\t%.2f%%\n", 
+        printf("file chewed through:\t\t%.1f%%\n", 
             ((double)ncc->stats.total_bytes * 100) / (double)ncc->capfsize);
     }
     printf("files extracted:\t\t%d\n", ncc->stats.total_files);
+    printf("packet errors:\t\t\t%d\n", ncc->stats.packet_errors);
+    printf("extraction errors:\t\t%d\n", ncc->stats.extraction_errors);
     fflush(stdout);
 }
 
