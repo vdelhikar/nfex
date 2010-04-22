@@ -434,20 +434,24 @@ srch_results_t **results, uint8_t c, int offset)
     }
 
     /* now see if we want to start a new thread (i.e. a new potential match) */
-    if (tree->data.table[c] != NULL) {
+    if (tree->data.table[c])
+    {
         srch_node_t *node = tree->data.table[c];
         srchptr_list_t *ptr;
 
-        switch (node->nodetype) {
+        switch (node->nodetype)
+        {
         case TABLE:            /* this should be 99.99% of them */
-            if (*srchptr_list == NULL) {
+            if (*srchptr_list == NULL)
+            {
                 *srchptr_list = ecalloc(1, sizeof **srchptr_list);
                 (*srchptr_list)->next = NULL;
                 (*srchptr_list)->prev = NULL;
                 ptr = *srchptr_list;
-            } else {
-                for (ptr = *srchptr_list; ptr->next != NULL; ptr = ptr->next)
-                    ;
+            }
+            else
+            {
+                for (ptr = *srchptr_list; ptr->next; ptr = ptr->next);
                 ptr->next = emalloc(sizeof *ptr->next);
                 ptr->next->prev = ptr;
                 ptr = ptr->next;
@@ -478,9 +482,7 @@ int offset)
     assert(results);
 
     /* find the last element in the list, for setting prev */
-    for (ptr = results; *ptr && (*ptr)->next != NULL; 
-        ptr = &(*ptr)->next)
-        ;
+    for (ptr = results; *ptr && (*ptr)->next; ptr = &(*ptr)->next);
 
     if (*ptr)
     {

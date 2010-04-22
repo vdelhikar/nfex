@@ -116,12 +116,14 @@ int offset, int size, ncc_t *ncc)
         eptr->next->prev = eptr;
     }
 
-    report("found file \"%s\" in session (", fileid->ext);
-    printip(session->connection.ip_src);
-    report(":%d -> ", ntohs(session->connection.port_src));
-    printip(session->connection.ip_dst);
-    report(":%d), extracting to ", ntohs(session->connection.port_dst));
-
+    if (ncc->flags & NFEX_VERBOSE)
+    {
+        report("found \"%s\" (", fileid->ext);
+        printip(session->connection.ip_src);
+        report(":%d -> ", ntohs(session->connection.port_src));
+        printip(session->connection.ip_dst);
+        report(":%d), extracting to ", ntohs(session->connection.port_dst));
+    }
     eptr->fd = open_extract(fileid->ext, session->connection.ip_src, 
                session->connection.port_src, session->connection.ip_dst,
                session->connection.port_dst, ncc);
@@ -155,7 +157,12 @@ uint16_t dst_prt, ncc_t *ncc)
         getpid(), ncc->filenum, ext);
 
     n = open(fname, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
-    report("%s\n", fname);
+    /** need to catch error */
+
+    if (ncc->flags & NFEX_VERBOSE)
+    {
+        report("%s\n", fname);
+    }
 
     /** write out details to index file */
     fprintf(ncc->indexfp, "%s, ", ncc->device ? "live-capture" : ncc->capfname);
@@ -237,6 +244,7 @@ extract_segment(extract_list_t *elist, const uint8_t *data, ncc_t *ncc)
     {
         fprintf(stderr, "error writing file (%d) wrote %ld of %ld bytes: %s", 
             elist->fd, c, nbytes, strerror(errno));
+        ncc->stats.extraction_errors++;
         return; 
 /** previously hard quit here; will this have sideeffects?
 add a flag to let higher logic know to bail on this one */
