@@ -1,9 +1,10 @@
 AC_INIT(src/extract.c)
-AM_INIT_AUTOMAKE(nfex, 2.3)
+AM_INIT_AUTOMAKE(nfex, 2.4)
 AC_CANONICAL_HOST
 AM_CONFIG_HEADER([include/config.h])
 
-CFLAGS="$CFLAGS -ggdb"
+dnl CFLAGS="$CFLAGS -ggdb"
+CFLAGS="$CFLAGS"
 
 AC_PROG_CC
 AC_PROG_AWK
@@ -14,11 +15,8 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
 AC_CHECK_LIB(fl, main)
-dnl AC_CHECK_LIB(pcap, pcap_open_offline)
-dnl AC_SEARCH_LIBS([libnet_init], [net])
-dnl AC_SEARCH_LIBS([fl], [main])
 AC_SEARCH_LIBS([pcap_open_live], [pcap])
-dnl AC_SEARCH_LIBS([cl_init], [clamav])
+AC_SEARCH_LIBS([libnet_init], [net])
 AC_SEARCH_LIBS([floor], [m])
 
 AC_HEADER_STDC
