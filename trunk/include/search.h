@@ -97,9 +97,12 @@ size_t);
 extern void free_results_list(srch_results_t **);
 
 static srch_node_t *new_srch_node(srch_nodetype_t);
-static srch_node_t *add_simple(srch_node_t *, uint8_t, int, int, char *, unsigned long, spectype_t);
-static srch_node_t *add_wildcard(srch_node_t *, int, int, char *, unsigned long, spectype_t);
-static void update_search(srch_node_t *, srchptr_list_t **, srch_results_t **, uint8_t, int);
+static srch_node_t *add_simple(srch_node_t *, uint8_t, int, int, char *,
+unsigned long, spectype_t);
+static srch_node_t *add_wildcard(srch_node_t *, int, int, char *,
+unsigned long, spectype_t);
+static void update_search(srch_node_t *, srchptr_list_t **, srch_results_t **,
+uint8_t, int);
 static void add_result(srch_results_t **, fileid_t *, spectype_t, int);
 
 #endif /* SEARCH_H */
