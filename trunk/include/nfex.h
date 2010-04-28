@@ -26,7 +26,6 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <signal.h>
-#include <assert.h>
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
@@ -34,9 +33,18 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include "sessionlist.h"
+#include "config.h"
 
-#ifndef DEFAULT_CONFIG_FILE
-#define DEFAULT_CONFIG_FILE "/usr/local/etc/nfex.conf"
+#if (HAVE_GEOIP)
+#include <GeoIP.h>
+#include <GeoIPCity.h>
+#ifndef NFEX_GEOIP_CONFIG_FILE
+#define NFEX_GEOIP_CONFIG_FILE "/usr/local/etc/nfex/GeoIPCity.dat"
+#endif
+#endif
+
+#ifndef NFEX_DEFAULT_CONFIG_FILE
+#define NFEX_DEFAULT_CONFIG_FILE "/usr/local/etc/nfex/nfex.conf"
 #endif
 
 /** as we add more protocols this needs to change */
@@ -81,12 +89,17 @@ struct nfex_control_context
     pcap_t *p;                        /* pcap context */
     int pcap_fd;                      /* pcap fd used to select across */
     char *device;                     /* pcap device */
-    slist_t *sessions;                /* packet session list */
+    slist_t *sessions;                /* master packet session list */
+    slist_t *session;                 /* candidate packet session */
     struct termios term;              /* save terminal info to restore later */
     u_int16_t flags;                  /* control context flags */
 #define NFEX_VERBOSE 0x0001           /* toggle verbosity */
 #define NFEX_GEOIP   0x0002           /* toggle geoIP mode */
     FILE *log;                        /* logfile FILE descriptor */
+#if (HAVE_GEOIP)
+    GeoIP *gi;                        /* geoip database pointer */
+    char geoip_data[128];             /* geoip database path */
+#endif /** HAVE_GEOIP */
     char yyinfname[128];
     srch_node_t *srch_machine;
     char output_dir[128];             /* output directory prefix */
@@ -105,7 +118,8 @@ void process_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 void quit_signal(int);
 
 /** initialization functions */
-ncc_t *control_context_init(char *, char *, char *, char *, u_int16_t, char *);
+ncc_t *control_context_init(char *, char *, char *, char *, char *, u_int16_t, 
+char *);
 void control_context_destroy(ncc_t *);
 
 /** main loop functions */

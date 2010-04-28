@@ -1,5 +1,8 @@
 /* include/config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define if system has MaxMind GeoIP */
+#undef HAVE_GEOIP
+
 /* Define to 1 if you have the `fl' library (-lfl). */
 #undef HAVE_LIBFL
 

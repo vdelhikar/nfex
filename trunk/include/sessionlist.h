@@ -46,31 +46,34 @@
 #include "extract.h"
 #include "search.h"
 
+#define SESSION_THRESHOLD 30        /** a session will stale out in 30s */
+
 typedef struct
 {
     uint32_t ip_src;
     uint32_t ip_dst;
     uint16_t port_src;
     uint16_t port_dst;
-} connection_t;
+} four_tuple_t;
 
 typedef struct slist_node
 {
-    struct slist_node *prev;
+    struct slist_node *prev;        /* doubley linked list */
     struct slist_node *next;    
-    connection_t connection; 
-    int last_seqnum;         /* the last sequence number recieved */
-    time_t last_recvd;           /* the last time a packet was seen */
-    int recording;               /* whether we are currently extracting data */
+    four_tuple_t ft;                /* four tuple information */
+    int last_seqnum;                /* the last sequence number recieved */
+    time_t last_recvd;              /* the last time a packet was seen */
+    int recording;                  /* flag, are currently extracting data */
     srchptr_list_t *srchptr_list;   /* current search threads */
     extract_list_t *extract_list;   /* list of current files being extracted */
 } slist_t;
 
-extern slist_t *add_session(slist_t **, connection_t *);
-extern slist_t *find_session(slist_t **, connection_t *);
-extern void sweep_sessions(slist_t **);
+extern slist_t *sessions_add(slist_t **, four_tuple_t *);
+extern slist_t *sessions_find(slist_t **, four_tuple_t *);
+extern void sessions_prune(slist_t **);
+uint32_t count_extractions(slist_t *);
 
 /* for debugging */
-extern int count_sessions(slist_t *);
+uint32_t sessions_count(slist_t *);
 
 #endif /* SESSIONLIST_H */

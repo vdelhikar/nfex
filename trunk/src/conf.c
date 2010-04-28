@@ -31,11 +31,6 @@
 
 #include "nfex.h"
 #include "conf.h"
-#include "util.h"
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include "search.h"
 
 static int id;
 

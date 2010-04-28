@@ -32,7 +32,7 @@ the_game(ncc_t *ncc)
                 break;
         }
 
-        sweep_sessions(&ncc->sessions);
+        sessions_prune(&ncc->sessions);
         if (c < 0)
         {
             error(pcap_geterr(ncc->p));
@@ -63,7 +63,7 @@ the_game(ncc_t *ncc)
             if (FD_ISSET(ncc->pcap_fd, &read_set))
             {
                 n = pcap_dispatch(ncc->p, 100, process_packet, (u_char *)ncc);
-                sweep_sessions(&ncc->sessions);
+                sessions_prune(&ncc->sessions);
                 if (n == 0)
                 {
                     return (EXIT_SUCCESS);
@@ -113,18 +113,20 @@ process_keypress(ncc_t *ncc)
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             fprintf(stderr,"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
             break;
+#if (HAVE_GEOIP)
         case 'g':
             if (ncc->flags & NFEX_GEOIP)
             {
                 ncc->flags &= ~NFEX_GEOIP;
-                printf("geoIP mode on\n");
+                printf("geoIP mode off\n");
             }
             else
             {
                 ncc->flags |= NFEX_GEOIP;
-                printf("geoIP mode off\n");
+                printf("geoIP mode on\n");
             }
             break;
+#endif /** HAVE_GEOIP */
         case 'r':
             /* clear stats */
             /** FIXME: save uptime */
@@ -157,7 +159,9 @@ process_keypress(ncc_t *ncc)
             /* help */
             printf("\n-[command summary]-\n");
             printf("[c]   - clear screen\n");
+#if (HAVE_GEOIP)
             printf("[g]   - toggle geoIP mode\n");
+#endif /** HAVE_GEOIP */
             printf("[r]   - reset statistics\n");
             printf("[s]   - display statistics\n");
             printf("[q]   - quit\n");
@@ -227,7 +231,7 @@ stats(ncc_t *ncc)
         }
     }
     printf("\n");
-    printf("number of sessions\t\t%d\n", count_sessions(ncc->sessions));
+    printf("tracked sessions\t\t%d\n", sessions_count(ncc->sessions));
     printf("packets churned:\t\t%d\n", ncc->stats.total_packets);
     printf("bytes churned:\t\t\t%lld\n", ncc->stats.total_bytes);
     if (ncc->capfname[0])
@@ -236,6 +240,7 @@ stats(ncc_t *ncc)
             ((double)ncc->stats.total_bytes * 100) / (double)ncc->capfsize);
     }
     printf("files extracted:\t\t%d\n", ncc->stats.total_files);
+    printf("files extracting:\t\t%d\n", count_extractions(ncc->sessions));
     printf("packet errors:\t\t\t%d\n", ncc->stats.packet_errors);
     printf("extraction errors:\t\t%d\n", ncc->stats.extraction_errors);
     fflush(stdout);

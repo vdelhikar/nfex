@@ -29,32 +29,16 @@
    by Nick Harbour
 */
 
-#include <inttypes.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
-#include <netinet/tcp.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdio.h>
-
+#include "nfex.h"
 #include "sessionlist.h"
+#include "extract.h"
 #include "util.h"
 
 slist_t *
-add_session(slist_t **slist, connection_t *conn)
+sessions_add(slist_t **slist, four_tuple_t *ft)
 {
     slist_t **last_slist;
     slist_t *slist_ptr = NULL;
-
-    assert(slist);
-    assert(conn);
 
     /* find where to append a new element (aka. the end) */
     if (*slist == NULL)
@@ -64,13 +48,12 @@ add_session(slist_t **slist, connection_t *conn)
     else
     {
         for (slist_ptr = *slist; slist_ptr->next; slist_ptr = slist_ptr->next);
-
         last_slist = &slist_ptr->next;
     }
 
     *last_slist = (slist_t *) emalloc(sizeof (slist_t));
 
-    memcpy(&(*last_slist)->connection, conn, sizeof (*conn));
+    memcpy(&(*last_slist)->ft, ft, sizeof (*ft));
     (*last_slist)->prev         = slist_ptr;
     (*last_slist)->next         = NULL;
     (*last_slist)->srchptr_list = NULL;
@@ -79,20 +62,19 @@ add_session(slist_t **slist, connection_t *conn)
 }
 
 slist_t *
-find_session(slist_t **slist, connection_t *conn)
+sessions_find(slist_t **slist, four_tuple_t *ft)
 {
     slist_t *slist_ptr;
-    uint32_t ip_src;       /* keep this so we don't need to dereference conn each time */
+    uint32_t ip_src;      
+ /* keep this so we don't need to dereference conn each time */
 
-    assert(slist);
-    assert(conn);
-
-    ip_src = conn->ip_src;
+    ip_src = ft->ip_src;
     
     for (slist_ptr = *slist; slist_ptr; slist_ptr = slist_ptr->next)
     {
-        if (ip_src == slist_ptr->connection.ip_src
-            && memcmp(conn, &slist_ptr->connection, sizeof (connection_t)) == 0)
+       // if (ip_src == slist_ptr->ft.ip_src && 
+       //     memcmp(ft, &slist_ptr->ft, sizeof (four_tuple_t)) == 0)
+        if (memcmp(ft, &slist_ptr->ft, sizeof (four_tuple_t)) == 0)
         {
             /* we've found it */
             break;
@@ -101,6 +83,7 @@ find_session(slist_t **slist, connection_t *conn)
 
     if (slist_ptr == NULL)
     {
+        /** didn't find it */
         return (NULL);
     }
 
@@ -131,24 +114,24 @@ find_session(slist_t **slist, connection_t *conn)
 
 /* This function cleans out any old sessions from the list */
 void
-sweep_sessions(slist_t **slist)
+sessions_prune(slist_t **slist)
 {
-    const int TIMETOKILL = 30;  /* remove session if stale for 30 seconds */
     time_t currtime = time(NULL);
     slist_t *slist_ptr, *slist_next;
 
-    assert(slist != NULL);
-
-    for (slist_ptr = *slist; slist_ptr != NULL; slist_ptr = slist_next)
+    for (slist_ptr = *slist; slist_ptr; slist_ptr = slist_next)
     {
         slist_next = slist_ptr->next;
-        if (currtime - slist_ptr->last_recvd >= TIMETOKILL)
+        if (currtime - slist_ptr->last_recvd >= SESSION_THRESHOLD)
         {
-//fprintf(stderr, "killing session, %d total sessions\n", count_sessions(*slist));
+#if (DEBUG)
+             fprintf(stderr, "pruning stale session, %d total sessions left\n", 
+                 count_sessions(*slist));
+#endif /** DEBUG */
             if (slist_ptr->prev == NULL)
             {
                 *slist = slist_ptr->next;
-                if (slist_ptr->next != NULL)
+                if (slist_ptr->next)
                 {
                     slist_ptr->next->prev = NULL;
                 }
@@ -157,7 +140,7 @@ sweep_sessions(slist_t **slist)
             else
             {
                 slist_ptr->prev->next = slist_ptr->next;
-                if (slist_ptr->next != NULL)
+                if (slist_ptr->next)
                 {
                     slist_ptr->next->prev = slist_ptr->prev;
                 }
@@ -167,8 +150,8 @@ sweep_sessions(slist_t **slist)
     }
 }
 
-int
-count_sessions(slist_t *slist)
+uint32_t
+sessions_count(slist_t *slist)
 {
     slist_t *ptr;
     uint32_t n;
@@ -179,5 +162,33 @@ count_sessions(slist_t *slist)
     }
     return (n);
 }
+
+uint32_t
+count_extractions(slist_t *slist)
+{
+    slist_t *s_ptr;
+    extract_list_t *e_ptr;
+    uint32_t k;
+
+    if (slist == NULL)
+    {
+        return (0);
+    }
+
+    /** walk the sessionlist list */
+    for (k = 0, s_ptr = slist; s_ptr; s_ptr = s_ptr->next)
+    {
+        /** walk the extraction list */
+        for (e_ptr = slist->extract_list; e_ptr; e_ptr = e_ptr->next)
+        {
+            if (e_ptr->fd > 0)
+            {
+                k++;
+            }
+        }
+    }
+    return (k);
+}
+
 
 /** EOF */
