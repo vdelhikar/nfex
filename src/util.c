@@ -29,12 +29,8 @@
    by Nick Harbour
 */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
+#include "nfex.h"
 #include <stdarg.h>
-#include <inttypes.h>
-#include <string.h>
 #include <math.h>
 
 void
@@ -46,7 +42,7 @@ report(char *fmt, ...)
     vprintf(fmt, args);
     va_end(args);
 }
-
+#if 0
 void
 printip(uint32_t ip)
 {
@@ -55,7 +51,7 @@ printip(uint32_t ip)
     memcpy(addr, &ip, 4);
     report("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
 }
-
+#endif
 void *
 emalloc(size_t size)
 {

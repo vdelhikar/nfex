@@ -55,7 +55,9 @@ typedef struct extract_list
 // Using slist_t in the prototype created a mutually recursive header situation
 // that will not compile.
 //extern void extract(extract_list_t **, srch_results_t *, slist_t *, const uint8_t *, size_t);
+extern void printip();
 extern void extract();
+
 
 #ifndef FILENAME_BUFFER_SIZE
 #define FILENAME_BUFFER_SIZE 4096

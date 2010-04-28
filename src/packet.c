@@ -9,11 +9,7 @@
  */
 
 #include "nfex.h"
-#include "sessionlist.h"
 #include "config.h"
-#include "util.h"
-#include "confy.h"
-#include "search.h"
 #include <libnet.h>
 
 void
@@ -22,10 +18,9 @@ const u_char *packet)
 {
     ncc_t *ncc;
     uint8_t *payload;
-    connection_t conn;
+    four_tuple_t ft;
     int32_t payload_size;
     srch_results_t *results;
-    slist_t *session = NULL;
     struct libnet_ipv4_hdr *ip;
     struct libnet_tcp_hdr  *tcp;
     uint16_t ip_hl, tcp_hl, header_cruft;
@@ -70,31 +65,32 @@ const u_char *packet)
     ncc->stats.ts_last.tv_usec = header->ts.tv_usec;
 
     /** four tuple information aka "a session" */
-    conn.ip_src   = ip->ip_src.s_addr;
-    conn.ip_dst   = ip->ip_dst.s_addr;
-    conn.port_src = tcp->th_sport;
-    conn.port_dst = tcp->th_dport;
+    ft.ip_src   = ip->ip_src.s_addr;
+    ft.ip_dst   = ip->ip_dst.s_addr;
+    ft.port_src = tcp->th_sport;
+    ft.port_dst = tcp->th_dport;
 
+    /** look for this session in our list */
     if (ncc->sessions)
     {
-        session = find_session(&(ncc->sessions), &conn);
+        ncc->session = sessions_find(&(ncc->sessions), &ft);
     }
 
-    if (session == NULL)
+    /** add it */
+    if (ncc->session == NULL)
     {
-        session = add_session(&(ncc->sessions), &conn);
-        assert(session);
+        ncc->session = sessions_add(&(ncc->sessions), &ft);
     }
 
-    session->last_seqnum = tcp->th_seq;
-    session->last_recvd  = time(NULL);
+    ncc->session->last_seqnum = tcp->th_seq;
+    ncc->session->last_recvd  = time(NULL);
 
     /** pass payload to search interface to sift for our yumyums */
-    results = search(ncc->srch_machine, &session->srchptr_list, payload, 
+    results = search(ncc->srch_machine, &(ncc->session->srchptr_list), payload, 
         payload_size);
 
-    extract(&session->extract_list, results, session, payload, payload_size, 
-        ncc);
+    extract(&(ncc->session->extract_list), results, ncc->session, payload, 
+        payload_size, ncc);
 
     free_results_list(&results);
 }

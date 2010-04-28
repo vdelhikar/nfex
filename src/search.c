@@ -29,9 +29,7 @@
    by Nick Harbour
 */
 
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
+#include "nfex.h"
 #include "util.h"
 #include "search.h"
 #include "conf.h"
@@ -44,9 +42,6 @@ char *spec, spectype_t type)
 {
     int i, speclen;
     srch_node_t *node_ptr;
-
-    assert(srch_tree);
-    assert(spec);
 
     /** length of the raw HEADER or FOOTER as specified in config file */
     speclen = strlen(spec);
@@ -155,8 +150,6 @@ unsigned long maxlen, spectype_t type)
     srch_node_t *newnode;
     srch_node_t *retval;
     
-    assert(node);
-
     currlen++;
 
     if (remaining == 1)
@@ -190,8 +183,6 @@ add_wildcard(srch_node_t *node, int remaining, int id, char *ext, unsigned long 
     srch_node_t *newnode;
     int i;
     
-    assert(node);
-
     currlen++;
 
     if (remaining == 1)
@@ -238,10 +229,6 @@ size_t len)
     srch_results_t *retval = NULL;
     int i;
     
-    assert(tree);
-    assert(srchptr_list);
-    assert(buf);
-
     /** called once for every byte of data in the payload */
     for (i = 0; i < len; i++)
     {
@@ -257,9 +244,6 @@ add_srchptr(srchptr_list_t **srchptr_list, srch_node_t *node)
 {
     srchptr_list_t *ptr, *ptr2;
     
-    assert(srchptr_list);
-    assert(node);
-
     ptr = ecalloc(1, sizeof (srchptr_list_t));
     ptr->next = *srchptr_list;
 
@@ -276,9 +260,6 @@ add_srchptr(srchptr_list_t **srchptr_list, srch_node_t *node)
 static void
 remv_srchptr(srchptr_list_t **srchptr_list, srchptr_list_t *sptr)
 {
-    assert(srchptr_list);
-    assert(sptr);
-
     if (sptr->prev)
     {
         sptr->prev->next = sptr->next;
@@ -479,8 +460,6 @@ int offset)
 {
     srch_results_t **ptr, *prev = NULL;
 
-    assert(results);
-
     /* find the last element in the list, for setting prev */
     for (ptr = results; *ptr && (*ptr)->next; ptr = &(*ptr)->next);
 
@@ -503,8 +482,6 @@ void
 free_results_list(srch_results_t **results)
 {
     srch_results_t *rptr, *nxt;
-
-    assert(results);
 
     for (rptr = *results; rptr; rptr = nxt)
     {

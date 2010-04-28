@@ -13,7 +13,7 @@ extern FILE *yyin;
 
 ncc_t *
 control_context_init(char *output_dir, char *yyinfname, char *device, 
-char *capfname, u_int16_t flags, char *errbuf)
+char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
 {
     int f;
     char *filter;
@@ -33,8 +33,8 @@ char *capfname, u_int16_t flags, char *errbuf)
     memset(ncc, 0, sizeof (ncc_t));
     
     /** initialize elements of the control context */
-    ncc->flags         = flags;
-    ncc->device        = device;
+    ncc->flags  = flags;
+    ncc->device = device;
     strcpy(ncc->capfname, capfname);
     strcpy(ncc->output_dir, output_dir);
 
@@ -51,9 +51,9 @@ char *capfname, u_int16_t flags, char *errbuf)
         }
     }
 
-    if (yyinfname == NULL)
+    if (yyinfname[0] == 0)
     {
-        strcpy(ncc->yyinfname, DEFAULT_CONFIG_FILE);
+        sprintf(ncc->yyinfname, "%s", NFEX_DEFAULT_CONFIG_FILE);
     }
     else
     {
@@ -133,9 +133,8 @@ char *capfname, u_int16_t flags, char *errbuf)
         ncc->pcap_fd = pcap_fileno(ncc->p);
     }
 
-
-    filter = NFEX_PCAP_FILTER;
     /** compile and apply the filter */
+    filter = NFEX_PCAP_FILTER;
     if (pcap_compile(ncc->p, &filter_program, filter, 0, net) == -1)
     {
         fprintf(stderr, "can't parse filter %s: %s\n", filter,
@@ -206,6 +205,24 @@ char *capfname, u_int16_t flags, char *errbuf)
         goto err;
     }
 
+#if (HAVE_GEOIP)
+    /** power up the MaxMind Geo IP targeting stuff */
+    if (geoip_data[0] == 0)
+    {
+        sprintf(ncc->geoip_data, "%s", NFEX_GEOIP_CONFIG_FILE);
+    }
+    else
+    {
+        strcpy(ncc->geoip_data, geoip_data);
+    }
+    ncc->gi = GeoIP_open(ncc->geoip_data, GEOIP_MEMORY_CACHE);
+    if (ncc->gi == NULL)
+    {
+        fprintf(stderr, "can't open geoip database, no geoip targeting\n");
+        /** nontfatal */
+    }
+#endif /** HAVE_GEOIP */
+
     printf("what we're working with:\noutput dir:\t%s\nconfig file:\t%s\n", 
         ncc->output_dir, ncc->yyinfname);
     if (ncc->device)
@@ -219,15 +236,19 @@ char *capfname, u_int16_t flags, char *errbuf)
     }
     printf("pcap filter:\t%s\n", filter);
     printf("index file:\t%s\n", ncc->indexfname);
+#if (HAVE_GEOIP)
+    printf("geoIP database:\t%s\n", ncc->geoip_data);
+#endif
     if (flags & NFEX_VERBOSE)
     {
         printf("verbosity on\n");
     }
+#if (HAVE_GEOIP)
     if (flags & NFEX_GEOIP)
     {
         printf("geoIP mode on\n");
     }
-
+#endif /** HAVE_GEOIP */
     return (ncc);
 
 err:
@@ -242,12 +263,18 @@ control_context_destroy(ncc_t *ncc)
     {
         pcap_close(ncc->p);
     }
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &(ncc->term)) == -1)
+    if (ncc->term.c_iflag)
     {
-        /** nonfatal */
+        tcsetattr(STDIN_FILENO, TCSANOW, &(ncc->term));
     }
+#if (HAVE_GEOIP)
+    if (ncc->gi)
+    {
+        GeoIP_delete(ncc->gi);
+    }
+#endif /** HAVE_GEOIP */
 
-    /** log_close(m); */
+    /** log_close(ncc); */
 
     free(ncc);
     ncc = NULL;

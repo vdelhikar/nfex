@@ -29,22 +29,10 @@
    by Nick Harbour
 */
 
-#include <assert.h>
-#include <sys/types.h>
-#include <inttypes.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
 #include "nfex.h"
 #include "extract.h"
-#include "search.h"
 #include "util.h"
-#include "sessionlist.h"
-
+#include "config.h"
 
 /*
  * called once for each packet, this function starts, updates, and closes
@@ -57,8 +45,6 @@ const uint8_t *data, size_t size, ncc_t *ncc)
 {
     srch_results_t *rptr;
     extract_list_t *eptr;
-
-    assert(elist);
 
     /*
      * set all existing segment values to what they would be with no search 
@@ -104,14 +90,11 @@ int offset, int size, ncc_t *ncc)
 {
     extract_list_t *eptr;
 
-    assert(elist != NULL);
-    assert(fileid != NULL);
-
     /* add a new entry to the list */
     eptr = ecalloc(1, sizeof *eptr);
     eptr->next = *elist;
     eptr->fileid = fileid;
-    if (eptr->next != NULL)
+    if (eptr->next)
     {
         eptr->next->prev = eptr;
     }
@@ -119,14 +102,13 @@ int offset, int size, ncc_t *ncc)
     if (ncc->flags & NFEX_VERBOSE)
     {
         report("found \"%s\" (", fileid->ext);
-        printip(session->connection.ip_src);
-        report(":%d -> ", ntohs(session->connection.port_src));
-        printip(session->connection.ip_dst);
-        report(":%d), extracting to ", ntohs(session->connection.port_dst));
+        printip(session->ft.ip_src, ncc);
+        report(":%d -> ", ntohs(session->ft.port_src));
+        printip(session->ft.ip_dst, ncc);
+        report(":%d), extracting to ", ntohs(session->ft.port_dst));
     }
-    eptr->fd = open_extract(fileid->ext, session->connection.ip_src, 
-               session->connection.port_src, session->connection.ip_dst,
-               session->connection.port_dst, ncc);
+    eptr->fd = open_extract(fileid->ext, session->ft.ip_src, 
+        session->ft.port_src, session->ft.ip_dst, session->ft.port_dst, ncc);
     ncc->stats.total_files++;
     eptr->segment.start = offset;
 
@@ -259,8 +241,6 @@ sweep_extract_list(extract_list_t **elist)
 {
     extract_list_t *eptr, *nxt;
 
-    assert(elist);
-
     for (eptr = *elist; eptr; eptr = nxt)
     {
         nxt = eptr->next;
@@ -282,6 +262,54 @@ sweep_extract_list(extract_list_t **elist)
             free(eptr);
         }
     }
+}
+
+void
+printip(uint32_t ip, ncc_t *ncc)
+{
+    uint8_t addr[4];
+#if (HAVE_GEOIP)
+    GeoIPRecord *gir;
+#endif
+
+#if (HAVE_GEOIP)
+        if ((ncc->flags & NFEX_GEOIP) && ncc->gi)
+        {
+            gir = GeoIP_record_by_ipnum(ncc->gi, ip);
+            if (gir == NULL)
+            {
+                /** fall back on printing the IP address */
+                goto print_simple;
+            }
+            if (gir->city && gir->country_code)
+            {
+                printf("%s, %s", gir->city, gir->country_code);
+                return;
+            }
+            if (gir->city && gir->country_code == NULL)
+            {
+                printf("%s, ?", gir->city);
+                return;
+            }
+            if (gir->city == NULL && gir->country_code)
+            {
+                printf("?, %s", gir->country_code);
+                return;
+            }
+            if (gir->city == NULL && gir->country_code == NULL)
+            {
+                goto print_simple;
+            }
+        }
+#else
+        goto print_simple;
+#endif /** HAVE_GEOIP */
+
+print_simple:
+    memcpy(addr, &ip, 4);
+    report("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+
+    return;
 }
 
 /** EOF */
