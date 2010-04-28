@@ -119,7 +119,8 @@ main(int argc, char *argv[])
     printf("program initialized, now the game can start...\n");
 
     the_game(ncc);
-    stats(ncc);
+
+    stats(ncc, NFEX_STATS_CLOSEOUT);
     control_context_destroy(ncc);
     printf("program completed, normal exit\n");
 

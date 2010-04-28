@@ -135,12 +135,15 @@ process_keypress(ncc_t *ncc)
             break;
         case 's':
             /* display statistics */
-            stats(ncc);
+            stats(ncc, NFEX_STATS_UPDATE);
             break;
         case 'q':
             /* quit program */
             return (2);
         case 'V':
+            printf("%s v%s\n", PACKAGE, VERSION);
+            break;
+        case 'v':
             if (ncc->flags & NFEX_VERBOSE)
             {
                 ncc->flags &= ~NFEX_VERBOSE;
@@ -152,12 +155,9 @@ process_keypress(ncc_t *ncc)
                 printf("verbose mode on\n");
             }
             break;
-        case 'v':
-            printf("%s v%s\n", PACKAGE, VERSION);
-            break;
         case '?':
             /* help */
-            printf("\n-[command summary]-\n");
+            printf("-[command summary]-\n");
             printf("[c]   - clear screen\n");
 #if (HAVE_GEOIP)
             printf("[g]   - toggle geoIP mode\n");
@@ -165,8 +165,8 @@ process_keypress(ncc_t *ncc)
             printf("[r]   - reset statistics\n");
             printf("[s]   - display statistics\n");
             printf("[q]   - quit\n");
-            printf("[V]   - toggle verbose mode\n");
-            printf("[v]   - display program version\n");
+            printf("[V]   - display program version\n");
+            printf("[v]   - toggle verbose mode\n");
             printf("[?]   - help\n");
             break;
         default:
@@ -176,16 +176,16 @@ process_keypress(ncc_t *ncc)
 }
 
 void
-stats(ncc_t *ncc)
+stats(ncc_t *ncc, int mode)
 {
     struct timeval r, e;
     u_int32_t day, hour, min, sec;
 
-    printf("nfex statistics\n");
     gettimeofday(&e, NULL);
     PTIMERSUB(&e, &(ncc->stats.ts_start), &r);
     convert_seconds((u_int32_t)r.tv_sec, &day, &hour, &min, &sec);
-    printf("running time:\t\t\t");
+    printf("%s", (mode == NFEX_STATS_UPDATE ?
+        "up-time:\t\t\t" : "running-time:\t\t\t"));
     if (day > 0)
     {
         if (day == 1)
@@ -231,16 +231,23 @@ stats(ncc_t *ncc)
         }
     }
     printf("\n");
-    printf("tracked sessions\t\t%d\n", sessions_count(ncc->sessions));
+    if (mode == NFEX_STATS_UPDATE)
+    {
+       printf("session threads:\t\t%d\n", sessions_count(ncc->sessions));
+    } 
     printf("packets churned:\t\t%d\n", ncc->stats.total_packets);
     printf("bytes churned:\t\t\t%lld\n", ncc->stats.total_bytes);
     if (ncc->capfname[0])
     {
-        printf("file chewed through:\t\t%.1f%%\n", 
+        printf("pcap file processed:\t\t%.1f%%\n", 
             ((double)ncc->stats.total_bytes * 100) / (double)ncc->capfsize);
     }
     printf("files extracted:\t\t%d\n", ncc->stats.total_files);
-    printf("files extracting:\t\t%d\n", count_extractions(ncc->sessions));
+    if (mode == NFEX_STATS_UPDATE)
+    {
+        printf("files currently extracting:\t%d\n", 
+            count_extractions(ncc->sessions));
+    }
     printf("packet errors:\t\t\t%d\n", ncc->stats.packet_errors);
     printf("extraction errors:\t\t%d\n", ncc->stats.extraction_errors);
     fflush(stdout);

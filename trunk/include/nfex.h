@@ -175,7 +175,9 @@ dst_ip, uint16_t dst_prt, ncc_t *);
 
 
 /** misc functions */
-void stats(ncc_t *n);
+#define NFEX_STATS_UPDATE   0
+#define NFEX_STATS_CLOSEOUT 1
+void stats(ncc_t *n, int mode);
 void usage(char *);
 void quit_signal(int sig);
 void print_hex(u_int8_t *, u_int16_t);
