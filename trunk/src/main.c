@@ -80,10 +80,10 @@ main(int argc, char *argv[])
             case 'h':
                 usage(argv[0]);
                 break;
-            case 'V':
+            case 'v':
                 flags |= NFEX_VERBOSE;
                 break;
-            case 'v':
+            case 'V':
                 printf("%s v%s\n", PACKAGE, VERSION);
                 return (EXIT_SUCCESS);
                 break;
@@ -139,8 +139,8 @@ usage(char *progname)
            "  -g              toggle geoIP mode on\n"
 #endif /** HAVE_GEOIP */
            "  -o <DIRECTORY>  dump files here instead of cwd\n"
-           "  -V              toggle verbose mode on\n"
-           "  -v              display the version number\n"
+           "  -V              display the version number\n"
+           "  -v              toggle verbose mode on\n"
            "  -h              this\n", progname);
     exit(1);    
 }

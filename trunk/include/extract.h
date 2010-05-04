@@ -35,9 +35,12 @@
 #include <sys/types.h>
 #include <inttypes.h>
 #include "search.h"
-//#include "sessionlist.h"
 
-typedef struct extract_list
+#ifndef FILENAME_BUFFER_SIZE
+#define FILENAME_BUFFER_SIZE 4096
+#endif
+
+struct extract_list
 {
     struct extract_list *next;
     struct extract_list *prev;
@@ -50,17 +53,7 @@ typedef struct extract_list
         int end;
     } segment;
     int finish;             /* this mark is set when a footer is found */
-} extract_list_t;
-
-// Using slist_t in the prototype created a mutually recursive header situation
-// that will not compile.
-//extern void extract(extract_list_t **, srch_results_t *, slist_t *, const uint8_t *, size_t);
-extern void printip();
-extern void extract();
-
-
-#ifndef FILENAME_BUFFER_SIZE
-#define FILENAME_BUFFER_SIZE 4096
-#endif /* FILENAME_BUFFER_SIZE */
+};
+typedef struct extract_list extract_list_t;
 
 #endif /* EXTRACT_H */

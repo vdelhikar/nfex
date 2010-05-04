@@ -8,6 +8,9 @@
  * Based off of tcpxtract by Nicholas Harbour.
  */
 
+#ifndef NFEX_H
+#define NFEX_H
+
 #define _BSD_SOURCE 1
 
 #include <pcap.h>
@@ -91,10 +94,14 @@ struct nfex_control_context
     char *device;                     /* pcap device */
     slist_t *sessions;                /* master packet session list */
     slist_t *session;                 /* candidate packet session */
+    slist_t *tail;                    /* end of the session list */
+    uint32_t session_count;           /* number of sessions */
     struct termios term;              /* save terminal info to restore later */
-    u_int16_t flags;                  /* control context flags */
-#define NFEX_VERBOSE 0x0001           /* toggle verbosity */
-#define NFEX_GEOIP   0x0002           /* toggle geoIP mode */
+    uint16_t flags;                   /* control context flags */
+#define NFEX_VERBOSE       0x0001     /* toggle verbosity */
+#define NFEX_GEOIP         0x0002     /* toggle geoIP mode */
+#define NFEX_DEBUG_NS      0x0004     /* debug mode: notify session updates */
+#define NFEX_SESSIONS_LOCK 0x0008     /* locked, don't go in here */
     FILE *log;                        /* logfile FILE descriptor */
 #if (HAVE_GEOIP)
     GeoIP *gi;                        /* geoip database pointer */
@@ -118,7 +125,7 @@ void process_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 void quit_signal(int);
 
 /** initialization functions */
-ncc_t *control_context_init(char *, char *, char *, char *, char *, u_int16_t, 
+ncc_t *control_context_init(char *, char *, char *, char *, char *, uint16_t, 
 char *);
 void control_context_destroy(ncc_t *);
 
@@ -163,16 +170,18 @@ int log_init(char *logfile, ncc_t *ncc);
 void log_msg(u_int8_t priority, ncc_t *ncc, char *fmt, ...);
 void log_close(ncc_t *ncc);
 
-/** extract functions */
+/** extraction functions */
 static void add_extract(extract_list_t **, fileid_t *, slist_t *, int, int,
 ncc_t *);
 static void set_segment_marks(extract_list_t *, size_t);
 static void mark_footer(extract_list_t *, srch_results_t *);
 static void extract_segment(extract_list_t *, const uint8_t *, ncc_t *);
 static void sweep_extract_list(extract_list_t **);
-static int open_extract(char *, uint32_t src_ip, uint16_t src_prt, uint32_t
-dst_ip, uint16_t dst_prt, ncc_t *);
-
+static  int open_extract(char *, uint32_t src_ip, uint16_t src_prt, 
+                         uint32_t dst_ip, uint16_t dst_prt, ncc_t *);
+void printip(uint32_t ip, ncc_t *ncc);
+void extract(extract_list_t **elist, srch_results_t *results, slist_t *session,
+             const uint8_t *data, size_t size, ncc_t *ncc);
 
 /** misc functions */
 #define NFEX_STATS_UPDATE   0
@@ -180,8 +189,21 @@ dst_ip, uint16_t dst_prt, ncc_t *);
 void stats(ncc_t *n, int mode);
 void usage(char *);
 void quit_signal(int sig);
-void print_hex(u_int8_t *, u_int16_t);
-void convert_seconds(u_int32_t, u_int32_t *, u_int32_t *, u_int32_t *, 
-u_int32_t *);
+void print_hex(uint8_t *, uint16_t);
+void convert_seconds(uint32_t, uint32_t *, uint32_t *, uint32_t *, 
+                     uint32_t *);
 
+/** session list functions */
+slist_t *session_add(four_tuple_t *ft, ncc_t *ncc);
+slist_t *session_find(four_tuple_t *ft, ncc_t *ncc);
+void session_prune(ncc_t *ncc);
+uint32_t count_extractions(slist_t *slist);
+uint32_t session_count(ncc_t *ncc);
+#if (DEBUG_MODE)
+extern void session_dump(ncc_t *ncc);
+#endif
+
+
+
+#endif /** NFEX_H */
 /** EOF */

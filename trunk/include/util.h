@@ -31,13 +31,13 @@
 
 #ifndef UTIL_H
 #define UTIL_H
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <inttypes.h>
 
 extern void error(char *);
 extern void report(char *, ...);
-//extern void printip(uint32_t);
 extern void *emalloc(size_t);
 extern void *ecalloc(size_t, size_t);
 

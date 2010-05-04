@@ -7,4 +7,4 @@
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-DISTCLEANFILES = *~
+DISTCLEANFILES = *~ a.out*

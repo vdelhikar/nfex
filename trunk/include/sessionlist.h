@@ -32,31 +32,23 @@
 #ifndef SESSIONLIST_H
 #define SESSIONLIST_H
 
-#include <inttypes.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
-#include <netinet/tcp.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <time.h>
-
-#include "extract.h"
+#include <inttypes.h>
 #include "search.h"
+#include "extract.h"
 
 #define SESSION_THRESHOLD 30        /** a session will stale out in 30s */
 
-typedef struct
+struct four_tuple
 {
     uint32_t ip_src;
     uint32_t ip_dst;
     uint16_t port_src;
     uint16_t port_dst;
-} four_tuple_t;
+};
+typedef struct four_tuple four_tuple_t;
 
-typedef struct slist_node
+struct slist_node
 {
     struct slist_node *prev;        /* doubley linked list */
     struct slist_node *next;    
@@ -66,14 +58,7 @@ typedef struct slist_node
     int recording;                  /* flag, are currently extracting data */
     srchptr_list_t *srchptr_list;   /* current search threads */
     extract_list_t *extract_list;   /* list of current files being extracted */
-} slist_t;
-
-extern slist_t *sessions_add(slist_t **, four_tuple_t *);
-extern slist_t *sessions_find(slist_t **, four_tuple_t *);
-extern void sessions_prune(slist_t **);
-uint32_t count_extractions(slist_t *);
-
-/* for debugging */
-uint32_t sessions_count(slist_t *);
+};
+typedef struct slist_node slist_t;
 
 #endif /* SESSIONLIST_H */

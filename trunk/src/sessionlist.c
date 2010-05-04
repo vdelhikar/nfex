@@ -1,5 +1,5 @@
 /*
- * sessionlist.c - session linkage stuff
+ * sessionlist.c - session list stuff
  *
  * 2009, 2010 Mike Schiffman <mschiffm@cisco.com> 
  *
@@ -35,133 +35,194 @@
 #include "util.h"
 
 slist_t *
-sessions_add(slist_t **slist, four_tuple_t *ft)
+session_add(four_tuple_t *ft, ncc_t *ncc)
 {
-    slist_t **last_slist;
-    slist_t *slist_ptr = NULL;
+    slist_t *p;
 
-    /* find where to append a new element (aka. the end) */
-    if (*slist == NULL)
+    /** append new element to the end of the session list */
+    if (ncc->sessions == NULL)
     {
-        last_slist = slist;
+        /** the last is the first */
+        p = ncc->sessions = emalloc(sizeof (slist_t));
+        memset(p, 0, sizeof (slist_t));
+        p->prev = NULL;
+        p->next = NULL;
     }
     else
     {
-        for (slist_ptr = *slist; slist_ptr->next; slist_ptr = slist_ptr->next);
-        last_slist = &slist_ptr->next;
+        /** the last is the last */
+        p = ncc->tail;
+        p->next = emalloc(sizeof (slist_t));
+        memset(p->next, 0, sizeof (slist_t));
+        p->next->prev = p;
+        p = p->next;
+        p->next = NULL;
     }
 
-    *last_slist = (slist_t *) emalloc(sizeof (slist_t));
+    memcpy(&(p->ft), ft, sizeof (*ft));
+    p->srchptr_list = NULL;
+    p->extract_list = NULL;
+    ncc->tail       = p;
+    ncc->session_count++;
 
-    memcpy(&(*last_slist)->ft, ft, sizeof (*ft));
-    (*last_slist)->prev         = slist_ptr;
-    (*last_slist)->next         = NULL;
-    (*last_slist)->srchptr_list = NULL;
-    (*last_slist)->extract_list = NULL;
-    return (*last_slist);
+    return (p);
 }
 
 slist_t *
-sessions_find(slist_t **slist, four_tuple_t *ft)
+session_find(four_tuple_t *ft, ncc_t *ncc)
 {
-    slist_t *slist_ptr;
-    uint32_t ip_src;      
- /* keep this so we don't need to dereference conn each time */
+    slist_t *p;
 
-    ip_src = ft->ip_src;
-    
-    for (slist_ptr = *slist; slist_ptr; slist_ptr = slist_ptr->next)
+    for (p = ncc->sessions; p; p = p->next)
     {
-       // if (ip_src == slist_ptr->ft.ip_src && 
-       //     memcmp(ft, &slist_ptr->ft, sizeof (four_tuple_t)) == 0)
-        if (memcmp(ft, &slist_ptr->ft, sizeof (four_tuple_t)) == 0)
+        if (memcmp(ft, &p->ft, sizeof (four_tuple_t)) == 0)
         {
-            /* we've found it */
+            /** we've found it */
             break;
         }
     }
 
-    if (slist_ptr == NULL)
+    if (p == NULL)
     {
         /** didn't find it */
         return (NULL);
     }
 
-    /* move the newly found session to the top of the list */
-    if (slist_ptr->prev)
+    /** move the newly found session to the top of the list */
+    if (ncc->tail == p)
     {
-        slist_ptr->prev->next = slist_ptr->next;
+        /** make sure to update the end of list pointer if need be */
+        ncc->tail = p->prev ? p->prev : ncc->sessions;
+    }
+    if (p->prev)
+    {
+        p->prev->next = p->next;
     }
 
-    if (slist_ptr->next)
+    if (p->next)
     {
-        slist_ptr->next->prev = slist_ptr->prev;
+        p->next->prev = p->prev;
     }
-    slist_ptr->prev = NULL;
+    p->prev = NULL;
 
-    if (*slist != slist_ptr)
+    if (ncc->sessions != p)
     {
-        slist_ptr->next = *slist;
+        p->next = ncc->sessions;
     }
-    if (slist_ptr->next)
+    if (p->next)
     {
-        slist_ptr->next->prev = slist_ptr;
+        p->next->prev = p;
     }
-    *slist = slist_ptr;
+    ncc->sessions = p;
 
-    return (slist_ptr);
+    return (p);
 }
 
-/* This function cleans out any old sessions from the list */
 void
-sessions_prune(slist_t **slist)
+session_prune(ncc_t *ncc)
 {
-    time_t currtime = time(NULL);
-    slist_t *slist_ptr, *slist_next;
+    time_t now;
+    slist_t *p, *p_next;
 
-    for (slist_ptr = *slist; slist_ptr; slist_ptr = slist_next)
+    p = ncc->sessions;
+    if (p == NULL)
     {
-        slist_next = slist_ptr->next;
-        if (currtime - slist_ptr->last_recvd >= SESSION_THRESHOLD)
+        return;
+    }
+
+    if (ncc->flags & NFEX_SESSIONS_LOCK)
+    {
+#if (DEBUG_MODE)
+        fprintf(stderr, 
+        "[DEBUG MODE] tried to prune sessions but sessionslist is locked\n");
+#endif
+        /** try again later, next time we're called */
+        return;
+    }
+    /** lock the session list and walk it */
+    ncc->flags |= NFEX_SESSIONS_LOCK;
+
+    now = time(NULL);
+    for (; p; p = p_next)
+    {
+        p_next = p->next;
+        if (now - p->last_recvd >= SESSION_THRESHOLD)
         {
-#if (DEBUG)
-             fprintf(stderr, "pruning stale session, %d total sessions left\n", 
-                 count_sessions(*slist));
-#endif /** DEBUG */
-            if (slist_ptr->prev == NULL)
+#if (DEBUG_MODE)
+             fprintf(stderr, 
+                 "[DEBUG MODE] pruning stale session, %d sessions left\n", 
+                 session_count(ncc));
+#endif
+            if (p->prev == NULL)
             {
-                *slist = slist_ptr->next;
-                if (slist_ptr->next)
+                ncc->sessions = p->next;
+                if (p->next)
                 {
-                    slist_ptr->next->prev = NULL;
+                    p->next->prev = NULL;
                 }
-                free(slist_ptr);
+                free(p);
             }
             else
             {
-                slist_ptr->prev->next = slist_ptr->next;
-                if (slist_ptr->next)
+                p->prev->next = p->next;
+                if (p->next)
                 {
-                    slist_ptr->next->prev = slist_ptr->prev;
+                    p->next->prev = p->prev;
                 }
-                free(slist_ptr);
+                free(p);
             }
         }
     }
+    /** unlock session list */
+    ncc->session_count--;
+    ncc->flags &= ~NFEX_SESSIONS_LOCK;
 }
 
 uint32_t
-sessions_count(slist_t *slist)
+session_count(ncc_t *ncc)
 {
-    slist_t *ptr;
+    slist_t *p;
     uint32_t n;
 
-    for (n = 0, ptr = slist; ptr; ptr = ptr->next)
+    for (n = 0, p = ncc->sessions; p; p = p->next)
     {
         n++;
     }
     return (n);
 }
+
+#if (DEBUG_MODE)
+void
+session_dump(ncc_t *ncc)
+{
+    slist_t *p;
+
+    fprintf(stderr, "[DEBUG MODE] sessionslist:\n");
+
+    if (ncc->flags & NFEX_SESSIONS_LOCK)
+    {
+#if (DEBUG_MODE)
+        fprintf(stderr,
+        "[DEBUG MODE] tried to dump sessions but sessionslist is locked\n");
+#endif
+        /** try again later, next time we're called */
+        return;
+    }
+    /** lock the session list and walk it */
+    ncc->flags |= NFEX_SESSIONS_LOCK;
+    
+    for (p = ncc->sessions; p; p = p->next)
+    {
+        printip(p->ft.ip_src, ncc);
+        report(":%d -> ", ntohs(p->ft.port_src));
+        printip(p->ft.ip_dst, ncc);
+        report(":%d\n", ntohs(p->ft.port_dst));
+    }
+    /** unlock session list */
+    ncc->flags &= ~NFEX_SESSIONS_LOCK;
+
+}
+#endif
 
 uint32_t
 count_extractions(slist_t *slist)
