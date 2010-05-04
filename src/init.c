@@ -30,11 +30,11 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         snprintf(errbuf, PCAP_ERRBUF_SIZE, "malloc(): %s\n", strerror(errno));
         return (NULL);
     }
-    memset(ncc, 0, sizeof (ncc_t));
     
     /** initialize elements of the control context */
-    ncc->flags  = flags;
-    ncc->device = device;
+    memset(ncc, 0, sizeof (ncc_t));
+    ncc->flags    = flags;
+    ncc->device   = device;
     strcpy(ncc->capfname, capfname);
     strcpy(ncc->output_dir, output_dir);
 
@@ -149,7 +149,6 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
        goto err;
     }
 
-
    /**
      * We want to change the behavior of stdin to not echo characters
      * typed and more importantly we want each character to be handed
@@ -249,6 +248,9 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         printf("geoIP mode on\n");
     }
 #endif /** HAVE_GEOIP */
+#if (DEBUG_MODE)
+    printf("[DEBUG MODE ENABLED]\n");
+#endif
     return (ncc);
 
 err:

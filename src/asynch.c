@@ -10,12 +10,14 @@
 
 #include "nfex.h" 
 #include "config.h"
+#include <event.h>
 
 int
 the_game(ncc_t *ncc)
 {
     int c, n;
     fd_set read_set;
+    struct event eb;
 
     /** file extraction */
     while (ncc->capfname[1])
@@ -26,13 +28,12 @@ the_game(ncc_t *ncc)
         {
             case 2:
                 /** user hit 'q'uit */
-                printf("user quit\n");
+                fprintf(stderr, "user quit\n");
                 return (2);
             default:
                 break;
         }
-
-        sessions_prune(&ncc->sessions);
+        session_prune(ncc);
         if (c < 0)
         {
             error(pcap_geterr(ncc->p));
@@ -63,7 +64,7 @@ the_game(ncc_t *ncc)
             if (FD_ISSET(ncc->pcap_fd, &read_set))
             {
                 n = pcap_dispatch(ncc->p, 100, process_packet, (u_char *)ncc);
-                sessions_prune(&ncc->sessions);
+                session_prune(ncc);
                 if (n == 0)
                 {
                     return (EXIT_SUCCESS);
@@ -168,7 +169,28 @@ process_keypress(ncc_t *ncc)
             printf("[V]   - display program version\n");
             printf("[v]   - toggle verbose mode\n");
             printf("[?]   - help\n");
+#if (DEBUG_MODE)
+            printf("[d]   - [DEBUG MODE] dump session list\n");
+            printf("[n]   - [DEBUG MODE] notify all session updates\n");
+#endif
             break;
+#if (DEBUG_MODE)
+        case 'd':
+            session_dump(ncc);
+            break;
+        case 'n':
+            if (ncc->flags & NFEX_DEBUG_NS)
+            {
+                ncc->flags &= ~NFEX_DEBUG_NS;
+                printf("[DEBUG MODE] notify all session updates off\n");
+            }
+            else
+            {
+                ncc->flags |= NFEX_DEBUG_NS;
+                printf("[DEBUG MODE] notify all session updates on\n");
+            }
+            break;
+#endif
         default:
             break;
     }
@@ -231,10 +253,15 @@ stats(ncc_t *ncc, int mode)
         }
     }
     printf("\n");
+#if 0
     if (mode == NFEX_STATS_UPDATE)
     {
-       printf("session threads:\t\t%d\n", sessions_count(ncc->sessions));
-    } 
+       printf("sessions watched:\t\t%d\n", session_count(ncc));
+       printf("sessions watched:\t\t%d\n", ncc->session_count);
+    }
+#endif 
+       printf("sessions watched:\t\t%d\n", session_count(ncc));
+       printf("sessions watched:\t\t%d\n", ncc->session_count);
     printf("packets churned:\t\t%d\n", ncc->stats.total_packets);
     printf("bytes churned:\t\t\t%lld\n", ncc->stats.total_bytes);
     if (ncc->capfname[0])

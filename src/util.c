@@ -42,16 +42,7 @@ report(char *fmt, ...)
     vprintf(fmt, args);
     va_end(args);
 }
-#if 0
-void
-printip(uint32_t ip)
-{
-    uint8_t addr[4];
 
-    memcpy(addr, &ip, 4);
-    report("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
-}
-#endif
 void *
 emalloc(size_t size)
 {

@@ -73,13 +73,23 @@ const u_char *packet)
     /** look for this session in our list */
     if (ncc->sessions)
     {
-        ncc->session = sessions_find(&(ncc->sessions), &ft);
+        ncc->session = session_find(&ft, ncc);
     }
 
     /** add it */
     if (ncc->session == NULL)
     {
-        ncc->session = sessions_add(&(ncc->sessions), &ft);
+        ncc->session = session_add(&ft, ncc);
+#if (DEBUG_MODE)
+        if (ncc->flags & NFEX_DEBUG_NS)
+        {
+            fprintf(stderr, "new session: ");
+            printip(ft.ip_src, ncc);
+            report(":%d -> ", ntohs(ft.port_src));
+            printip(ft.ip_dst, ncc);
+            report(":%d\n", ntohs(ft.port_dst));
+        }
+#endif
     }
 
     ncc->session->last_seqnum = tcp->th_seq;

@@ -273,9 +273,9 @@ printip(uint32_t ip, ncc_t *ncc)
 #endif
 
 #if (HAVE_GEOIP)
-        if ((ncc->flags & NFEX_GEOIP) && ncc->gi)
+        if (((ncc->flags) & NFEX_GEOIP) && ncc->gi)
         {
-            gir = GeoIP_record_by_ipnum(ncc->gi, ip);
+            gir = GeoIP_record_by_ipnum(ncc->gi, ntohl(ip));
             if (gir == NULL)
             {
                 /** fall back on printing the IP address */
