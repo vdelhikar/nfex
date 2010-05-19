@@ -40,43 +40,44 @@
  * needs
  */
 void
-extract(extract_list_t **elist, srch_results_t *results, slist_t *session, 
+extract(extract_list_t **elist, srch_results_t *results, ht_node_t *session, 
 const uint8_t *data, size_t size, ncc_t *ncc)
 {
-    srch_results_t *rptr;
-    extract_list_t *eptr;
+    srch_results_t *r;
+    extract_list_t *e;
 
     /*
      * set all existing segment values to what they would be with no search 
      * results
      */
-    for (eptr = *elist; eptr; eptr = eptr->next)
+    for (e = *elist; e; e = e->next)
     {
-        set_segment_marks(eptr, size);
+        set_segment_marks(e, size);
     }
 
     /** look for new headers in the results set */
-    for (rptr = results; rptr; rptr = rptr->next)
+    for (r = results; r; r = r->next)
     {
-        if (rptr->spectype == HEADER)
+        if (r->spectype == HEADER)
         {
-            add_extract(elist, rptr->fileid, session, rptr->offset.start, 
+            add_extract(elist, r->fileid, session, r->offset.start, 
                 size, ncc);
         }
     }
 
     /** flip through any footers we found and close out those extracts */
-    for (rptr = results; rptr; rptr = rptr->next)
+    for (r = results; r; r = r->next)
     {
-        if (rptr->spectype == FOOTER)
+        if (r->spectype == FOOTER)
         {
-            mark_footer(*elist, rptr);
+            mark_footer(*elist, r);
         }
     }
+
     /** now lets do all the file writing and whatnot */
-    for (eptr = *elist; eptr; eptr = eptr->next)
+    for (e = *elist; e; e = e->next)
     {
-        extract_segment(eptr, data, ncc);
+        extract_segment(e, data, ncc);
     }
 
     /** remove any finished extractions from the list */
@@ -85,42 +86,43 @@ const uint8_t *data, size_t size, ncc_t *ncc)
 
 /* Add a new header match to the list of files being extracted */
 static void
-add_extract(extract_list_t **elist, fileid_t *fileid, slist_t *session, 
+add_extract(extract_list_t **elist, fileid_t *fileid, ht_node_t *session, 
 int offset, int size, ncc_t *ncc)
 {
-    extract_list_t *eptr;
+    extract_list_t *p;
 
     /* add a new entry to the list */
-    eptr = ecalloc(1, sizeof *eptr);
-    eptr->next = *elist;
-    eptr->fileid = fileid;
-    if (eptr->next)
+    p = ecalloc(1, sizeof *p);
+    p->next = *elist;
+    p->fileid = fileid;
+    if (p->next)
     {
-        eptr->next->prev = eptr;
+        p->next->prev = p;
     }
 
     if (ncc->flags & NFEX_VERBOSE)
     {
-        report("found \"%s\" (", fileid->ext);
+        printf("extracting \"%s\" (", fileid->ext);
         printip(session->ft.ip_src, ncc);
-        report(":%d -> ", ntohs(session->ft.port_src));
+        printf(":%d -> ", ntohs(session->ft.port_src));
         printip(session->ft.ip_dst, ncc);
-        report(":%d), extracting to ", ntohs(session->ft.port_dst));
+        printf(":%d), to ", ntohs(session->ft.port_dst));
     }
-    eptr->fd = open_extract(fileid->ext, session->ft.ip_src, 
-        session->ft.port_src, session->ft.ip_dst, session->ft.port_dst, ncc);
+    p->fd = open_extract(fileid->ext, session->ft.ip_src, session->ft.port_src,
+            session->ft.ip_dst, session->ft.port_dst, ncc);
+    p->timestamp = time(NULL);
     ncc->stats.total_files++;
-    eptr->segment.start = offset;
+    p->segment.start = offset;
 
     if (fileid->maxlen <= size - offset)
     {
-        eptr->segment.end = offset + fileid->maxlen;
+        p->segment.end = offset + fileid->maxlen;
     }
     else   
     {
-        eptr->segment.end = size;
+        p->segment.end = size;
     }
-    *elist = eptr;
+    *elist = p;
 }
 
 /** open the next availible filename for writing */
@@ -143,7 +145,7 @@ uint16_t dst_prt, ncc_t *ncc)
 
     if (ncc->flags & NFEX_VERBOSE)
     {
-        report("%s\n", fname);
+        printf("%s\n", fname);
     }
 
     /** write out details to index file */
@@ -173,19 +175,19 @@ uint16_t dst_prt, ncc_t *ncc)
 static void
 set_segment_marks(extract_list_t *elist, size_t size)
 {
-    extract_list_t *eptr;
+    extract_list_t *p;
 
-    for (eptr = elist; eptr; eptr = eptr->next)
+    for (p = elist; p; p = p->next)
     {
-        eptr->segment.start = 0;
-        if (eptr->fileid->maxlen - eptr->nwritten < size)
+        p->segment.start = 0;
+        if (p->fileid->maxlen - p->nwritten < size)
         {
-            eptr->segment.end = eptr->fileid->maxlen - eptr->nwritten;
-            eptr->finish++;
+            p->segment.end = p->fileid->maxlen - p->nwritten;
+            p->finish++;
         }
         else
         {
-            eptr->segment.end = size;
+            p->segment.end = size;
         }
     }
 }
@@ -194,21 +196,21 @@ set_segment_marks(extract_list_t *elist, size_t size)
 static void
 mark_footer(extract_list_t *elist, srch_results_t *footer)
 {
-    extract_list_t *eptr;
+    extract_list_t *p;
 
     /*
      * this associates the first footer found with the last header found of a 
      * given type this is to accommodate embedded document types.  Somebody 
      * may have differing needs so this may want to be reworked later...
      */
-    for (eptr = elist; eptr; eptr = eptr->next)
+    for (p = elist; p; p = p->next)
     {
-        if (footer->fileid->id == eptr->fileid->id && 
-            eptr->segment.start < footer->offset.start)
+        if (footer->fileid->id == p->fileid->id && 
+            p->segment.start < footer->offset.start)
         {
             /** XXX this could extend beyond maxlen */
-            eptr->segment.end = footer->offset.end;
-            eptr->finish++;
+            p->segment.end = footer->offset.end;
+            p->finish++;
             break;
         }
     }
@@ -216,22 +218,25 @@ mark_footer(extract_list_t *elist, srch_results_t *footer)
 
 /** write data to a specified extract file */
 static void
-extract_segment(extract_list_t *elist, const uint8_t *data, ncc_t *ncc)
+extract_segment(extract_list_t *p, const uint8_t *data, ncc_t *ncc)
 {
     size_t c, nbytes;
 
-    nbytes = elist->segment.end - elist->segment.start;
+    nbytes = p->segment.end - p->segment.start;
 
-    if ((c = write(elist->fd, data + elist->segment.start, nbytes)) != nbytes)
+    /** update timestamp */
+    p->timestamp = time(NULL);
+    c = write(p->fd, data + p->segment.start, nbytes);
+    if (c != nbytes)
     {
-        fprintf(stderr, "error writing file (%d) wrote %ld of %ld bytes: %s", 
-            elist->fd, c, nbytes, strerror(errno));
+        fprintf(stderr, "error writing fd: %d, wrote %ld of %ld bytes: %s\n", 
+            p->fd, c, nbytes, strerror(errno));
         ncc->stats.extraction_errors++;
+        /** previously hard quit here; will this have sideeffects? */
+        /** add a flag to let higher logic know to bail on this one */
         return; 
-/** previously hard quit here; will this have sideeffects?
-add a flag to let higher logic know to bail on this one */
     }
-    elist->nwritten += nbytes;
+    p->nwritten += nbytes;
     sync();
 }
 
@@ -239,77 +244,32 @@ add a flag to let higher logic know to bail on this one */
 static void
 sweep_extract_list(extract_list_t **elist)
 {
-    extract_list_t *eptr, *nxt;
+    time_t now;
+    extract_list_t *p, *nxt;
 
-    for (eptr = *elist; eptr; eptr = nxt)
+    now = time(NULL);
+    for (p = *elist; p; p = p->next)
     {
-        nxt = eptr->next;
-        if (eptr->finish)
+        /** remove all finished or expired extracts */
+        if (p->finish || (now - p->timestamp >= SESSION_THRESHOLD))
         {
-            if (eptr->prev)
+if ((now - p->timestamp >= SESSION_THRESHOLD)) fprintf(stderr, "AHA!\n");
+            if (p->prev)
             {
-                eptr->prev->next = eptr->next;
+                p->prev->next = p->next;
             }
-            if (eptr->next)
+            if (p->next)
             {
-                eptr->next->prev = eptr->prev;
+                p->next->prev = p->prev;
             }
-            if (*elist == eptr)
+            if (*elist == p)
             {
-                *elist = eptr->next;
+                *elist = p->next;
             }
-            close(eptr->fd);
-            free(eptr);
+            close(p->fd);
+            free(p);
         }
     }
-}
-
-void
-printip(uint32_t ip, ncc_t *ncc)
-{
-    uint8_t addr[4];
-#if (HAVE_GEOIP)
-    GeoIPRecord *gir;
-#endif
-
-#if (HAVE_GEOIP)
-        if (((ncc->flags) & NFEX_GEOIP) && ncc->gi)
-        {
-            gir = GeoIP_record_by_ipnum(ncc->gi, ntohl(ip));
-            if (gir == NULL)
-            {
-                /** fall back on printing the IP address */
-                goto print_simple;
-            }
-            if (gir->city && gir->country_code)
-            {
-                printf("%s, %s", gir->city, gir->country_code);
-                return;
-            }
-            if (gir->city && gir->country_code == NULL)
-            {
-                printf("%s, ?", gir->city);
-                return;
-            }
-            if (gir->city == NULL && gir->country_code)
-            {
-                printf("?, %s", gir->country_code);
-                return;
-            }
-            if (gir->city == NULL && gir->country_code == NULL)
-            {
-                goto print_simple;
-            }
-        }
-#else
-        goto print_simple;
-#endif /** HAVE_GEOIP */
-
-print_simple:
-    memcpy(addr, &ip, 4);
-    report("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
-
-    return;
 }
 
 /** EOF */

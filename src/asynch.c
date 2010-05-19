@@ -15,14 +15,13 @@
 int
 the_game(ncc_t *ncc)
 {
-    int c, n;
+    int c, n, j;
     fd_set read_set;
-    struct event eb;
 
     /** file extraction */
-    while (ncc->capfname[1])
+    for (j = 0; ncc->capfname[1]; j++)
     {
-        c = pcap_dispatch(ncc->p, 100, process_packet, (u_char *)ncc);
+        c = pcap_dispatch(ncc->p, 100, process_packet, (uint8_t *)ncc);
         /** hand the keypress off be processed */
         switch (process_keypress(ncc))
         {
@@ -33,7 +32,12 @@ the_game(ncc_t *ncc)
             default:
                 break;
         }
-        session_prune(ncc);
+        /** every 10,000 packets let's clean house */
+        if (j == 100)
+        {
+            ht_expire_session(ncc);
+            j = 0;
+        }
         if (c < 0)
         {
             error(pcap_geterr(ncc->p));
@@ -49,7 +53,7 @@ the_game(ncc_t *ncc)
     }
 
     /** network extraction */
-    for (; ;)
+    for (j = 0; ; j++)
     {
         /** we multiplex input across the network and STDIN */
         FD_ZERO(&read_set);
@@ -64,7 +68,12 @@ the_game(ncc_t *ncc)
             if (FD_ISSET(ncc->pcap_fd, &read_set))
             {
                 n = pcap_dispatch(ncc->p, 100, process_packet, (u_char *)ncc);
-                session_prune(ncc);
+                /** every 10,000 packets let's clean house */
+                if (j == 100)
+                {
+                    ht_expire_session(ncc);
+                    j = 0;
+                }
                 if (n == 0)
                 {
                     return (EXIT_SUCCESS);
@@ -128,6 +137,12 @@ process_keypress(ncc_t *ncc)
             }
             break;
 #endif /** HAVE_GEOIP */
+        case 'h':
+            ht_status(ncc); 
+            break;
+        case 'f':
+            //search_dump_types(ncc);
+            break;
         case 'r':
             /* clear stats */
             /** FIXME: save uptime */
@@ -160,6 +175,7 @@ process_keypress(ncc_t *ncc)
             /* help */
             printf("-[command summary]-\n");
             printf("[c]   - clear screen\n");
+            printf("[f]   - show file search types\n");
 #if (HAVE_GEOIP)
             printf("[g]   - toggle geoIP mode\n");
 #endif /** HAVE_GEOIP */
@@ -169,28 +185,27 @@ process_keypress(ncc_t *ncc)
             printf("[V]   - display program version\n");
             printf("[v]   - toggle verbose mode\n");
             printf("[?]   - help\n");
-#if (DEBUG_MODE)
-            printf("[d]   - [DEBUG MODE] dump session list\n");
-            printf("[n]   - [DEBUG MODE] notify all session updates\n");
-#endif
-            break;
-#if (DEBUG_MODE)
-        case 'd':
-            session_dump(ncc);
-            break;
-        case 'n':
-            if (ncc->flags & NFEX_DEBUG_NS)
+            if (ncc->flags & NFEX_DEBUG)
             {
-                ncc->flags &= ~NFEX_DEBUG_NS;
+                printf("[d]   - [DEBUG MODE] dump session list\n");
+                printf("[h]   - [DEBUG MODE] hash table status\n");
+            }
+            break;
+        case 'd':
+            ht_dump(ncc);
+            break;
+        case 'n': /** XXX do something witih this */
+            if (ncc->flags & NFEX_DEBUG)
+            {
+                ncc->flags &= ~NFEX_DEBUG;
                 printf("[DEBUG MODE] notify all session updates off\n");
             }
             else
             {
-                ncc->flags |= NFEX_DEBUG_NS;
+                ncc->flags |= NFEX_DEBUG;
                 printf("[DEBUG MODE] notify all session updates on\n");
             }
             break;
-#endif
         default:
             break;
     }
@@ -252,16 +267,15 @@ stats(ncc_t *ncc, int mode)
             printf("%d seconds ", sec);
         }
     }
+    else
+    {
+        printf("< 1 second");
+    }
     printf("\n");
-#if 0
     if (mode == NFEX_STATS_UPDATE)
     {
-       printf("sessions watched:\t\t%d\n", session_count(ncc));
-       printf("sessions watched:\t\t%d\n", ncc->session_count);
+       printf("sessions watched:\t\t%d\n", ncc->stats.ht_entries);
     }
-#endif 
-       printf("sessions watched:\t\t%d\n", session_count(ncc));
-       printf("sessions watched:\t\t%d\n", ncc->session_count);
     printf("packets churned:\t\t%d\n", ncc->stats.total_packets);
     printf("bytes churned:\t\t\t%lld\n", ncc->stats.total_bytes);
     if (ncc->capfname[0])
@@ -273,7 +287,7 @@ stats(ncc_t *ncc, int mode)
     if (mode == NFEX_STATS_UPDATE)
     {
         printf("files currently extracting:\t%d\n", 
-            count_extractions(ncc->sessions));
+            ht_count_extracts(ncc));
     }
     printf("packet errors:\t\t\t%d\n", ncc->stats.packet_errors);
     printf("extraction errors:\t\t%d\n", ncc->stats.extraction_errors);

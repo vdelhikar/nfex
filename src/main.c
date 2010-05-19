@@ -10,11 +10,7 @@
 
 
 #include "nfex.h"
-#include "sessionlist.h"
 #include "config.h"
-#include "util.h"
-#include "confy.h"
-#include "search.h"
 
 int
 main(int argc, char *argv[])
@@ -44,12 +40,15 @@ main(int argc, char *argv[])
 #if (HAVE_GEOIP)
     memset(geoip_data, 0, sizeof (geoip_data));
 #endif /** HAVE_GEOIP */
-    while ((c = getopt(argc, argv, "c:d:G:gf:o:hVv")) != EOF)
+    while ((c = getopt(argc, argv, "c:Dd:G:gf:o:hVv")) != EOF)
     {
         switch (c)
         {
             case 'f':
                 strncpy(capfname, optarg, 127);
+                break;
+            case 'D':
+                flags |= NFEX_DEBUG;
                 break;
             case 'd':
                 device = strdup(optarg);

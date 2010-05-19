@@ -15,9 +15,10 @@ ncc_t *
 control_context_init(char *output_dir, char *yyinfname, char *device, 
 char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
 {
-    int f;
+    int n;
     char *filter;
     ncc_t *ncc;
+    struct rlimit rl;
     struct termios term;
     bpf_u_int32 net, mask;
     struct stat stat_info;
@@ -31,12 +32,19 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         return (NULL);
     }
     
-    /** initialize elements of the control context */
+    /** initialize certain elements of the control context */
     memset(ncc, 0, sizeof (ncc_t));
     ncc->flags    = flags;
     ncc->device   = device;
     strcpy(ncc->capfname, capfname);
     strcpy(ncc->output_dir, output_dir);
+
+    /** initialize hash table */
+    for (n = 0; n < NFEX_HT_SIZE; n++)
+    {
+        /** not needed!@ */
+        ncc->ht[n] = NULL;
+    }
 
     /** setup the output directory prefix stuff */
     if (ncc->output_dir[0])
@@ -93,9 +101,9 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         }
 
         /** need STDIN to nonblock if reading from file */
-        f = fcntl(STDIN_FILENO, F_GETFL, 0);
-        f |= O_NONBLOCK;
-        if (fcntl(STDIN_FILENO, F_SETFL, f) == -1)
+        n = fcntl(STDIN_FILENO, F_GETFL, 0);
+        n |= O_NONBLOCK;
+        if (fcntl(STDIN_FILENO, F_SETFL, n) == -1)
         {
             fprintf(stderr, "can't set STDIN to non-blocking: %s\n",
                 strerror(errno));
@@ -248,9 +256,20 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         printf("geoIP mode on\n");
     }
 #endif /** HAVE_GEOIP */
-#if (DEBUG_MODE)
-    printf("[DEBUG MODE ENABLED]\n");
-#endif
+    if (flags & NFEX_DEBUG)
+    {
+        printf("[DEBUG MODE ENABLED]\n");
+        if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
+        {
+            printf("[DEBUG] can't get RLIMIT_CORE, no core dump possible: %s\n",
+                strerror(errno));
+        }
+        else
+        {
+            printf("[DEBUG] we can only have %lld files open at one time\n",
+                rl.rlim_cur);
+        }
+    }
     return (ncc);
 
 err:
@@ -275,6 +294,7 @@ control_context_destroy(ncc_t *ncc)
         GeoIP_delete(ncc->gi);
     }
 #endif /** HAVE_GEOIP */
+    ht_shutitdown(ncc);
 
     /** log_close(ncc); */
 

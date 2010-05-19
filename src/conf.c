@@ -47,13 +47,13 @@ config_type(char *extension, char *maxlength, char *hspec, char *fspec, void *a)
         error("Invalid maximum length in file format specifier");
     }
 
-    compile_srch(&(ncc->srch_machine), id, strdup(extension), maxlen, hspec, 
+    search_compile(&(ncc->srch_machine), id, strdup(extension), maxlen, hspec, 
             HEADER);
 
     /** if a footer is specified in the confi file, compile it here */
     if (fspec)
     {
-        compile_srch(&(ncc->srch_machine), id, strdup(extension), maxlen, 
+        search_compile(&(ncc->srch_machine), id, strdup(extension), maxlen, 
             fspec, FOOTER);
     }
     id++;

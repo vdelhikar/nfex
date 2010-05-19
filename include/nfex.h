@@ -35,7 +35,7 @@
 
 #include <sys/ioctl.h>
 #include <termios.h>
-#include "sessionlist.h"
+#include "hash.h"
 #include "config.h"
 
 #if (HAVE_GEOIP)
@@ -75,14 +75,18 @@
 /** statistics */
 struct nfex_statistics
 {
-    u_int32_t total_packets;          /* total packets seen */
-    u_int64_t total_bytes;            /* total bytes read */
-    u_int32_t total_files;            /* total files extracted */
-    u_int32_t packet_errors;          /* packet-level errors */
-    u_int32_t extraction_errors;      /* extraction errors */
+    uint32_t total_packets;           /* total packets seen */
+    uint64_t total_bytes;             /* total bytes read */
+    uint32_t total_files;             /* total files extracted */
+    uint32_t packet_errors;           /* packet-level errors */
+    uint32_t extraction_errors;       /* extraction errors */
+    uint32_t ht_entries;              /* hash table: number of entries */
+    uint32_t ht_nc;                   /* hash table: non-chained entries */
+    uint32_t ht_ic;                   /* hash table: chained entries */
+    uint32_t ht_lc;                   /* hash table: longest chain */
     struct timeval ts_start;          /* total uptime timestamp */
     struct timeval ts_last;           /* last file extracted timestamp */
-    u_int32_t ip_last;                /* last packet seen ip */
+    uint32_t ip_last;                 /* last packet seen ip */
 };
 typedef struct nfex_statistics n_stats_t;
 
@@ -92,15 +96,14 @@ struct nfex_control_context
     pcap_t *p;                        /* pcap context */
     int pcap_fd;                      /* pcap fd used to select across */
     char *device;                     /* pcap device */
-    slist_t *sessions;                /* master packet session list */
-    slist_t *session;                 /* candidate packet session */
-    slist_t *tail;                    /* end of the session list */
-    uint32_t session_count;           /* number of sessions */
+    ht_node_t *ht[NFEX_HT_SIZE];      /* our hash table of sessions */
+    ht_node_t *session;               /* current session in focus */
+    srch_node_t *srch_machine;
     struct termios term;              /* save terminal info to restore later */
     uint16_t flags;                   /* control context flags */
 #define NFEX_VERBOSE       0x0001     /* toggle verbosity */
 #define NFEX_GEOIP         0x0002     /* toggle geoIP mode */
-#define NFEX_DEBUG_NS      0x0004     /* debug mode: notify session updates */
+#define NFEX_DEBUG         0x0004     /* debug mode */
 #define NFEX_SESSIONS_LOCK 0x0008     /* locked, don't go in here */
     FILE *log;                        /* logfile FILE descriptor */
 #if (HAVE_GEOIP)
@@ -108,7 +111,6 @@ struct nfex_control_context
     char geoip_data[128];             /* geoip database path */
 #endif /** HAVE_GEOIP */
     char yyinfname[128];
-    srch_node_t *srch_machine;
     char output_dir[128];             /* output directory prefix */
     u_int16_t filenum;                /* number of files we've written */
     char indexfname[128];
@@ -171,7 +173,7 @@ void log_msg(u_int8_t priority, ncc_t *ncc, char *fmt, ...);
 void log_close(ncc_t *ncc);
 
 /** extraction functions */
-static void add_extract(extract_list_t **, fileid_t *, slist_t *, int, int,
+static void add_extract(extract_list_t **, fileid_t *, ht_node_t *, int, int,
 ncc_t *);
 static void set_segment_marks(extract_list_t *, size_t);
 static void mark_footer(extract_list_t *, srch_results_t *);
@@ -180,8 +182,8 @@ static void sweep_extract_list(extract_list_t **);
 static  int open_extract(char *, uint32_t src_ip, uint16_t src_prt, 
                          uint32_t dst_ip, uint16_t dst_prt, ncc_t *);
 void printip(uint32_t ip, ncc_t *ncc);
-void extract(extract_list_t **elist, srch_results_t *results, slist_t *session,
-             const uint8_t *data, size_t size, ncc_t *ncc);
+void extract(extract_list_t **elist, srch_results_t *results, 
+             ht_node_t *session, const uint8_t *data, size_t size, ncc_t *ncc);
 
 /** misc functions */
 #define NFEX_STATS_UPDATE   0
@@ -193,17 +195,15 @@ void print_hex(uint8_t *, uint16_t);
 void convert_seconds(uint32_t, uint32_t *, uint32_t *, uint32_t *, 
                      uint32_t *);
 
-/** session list functions */
-slist_t *session_add(four_tuple_t *ft, ncc_t *ncc);
-slist_t *session_find(four_tuple_t *ft, ncc_t *ncc);
-void session_prune(ncc_t *ncc);
-uint32_t count_extractions(slist_t *slist);
-uint32_t session_count(ncc_t *ncc);
-#if (DEBUG_MODE)
-extern void session_dump(ncc_t *ncc);
-#endif
-
-
+/** session table functions */
+ht_node_t *ht_insert(four_tuple_t *ft, ncc_t *ncc);
+ht_node_t *ht_find(four_tuple_t *ft, ncc_t *ncc);
+uint16_t ht_hash(four_tuple_t *ft);
+uint32_t ht_count_extracts(ncc_t *ncc);
+void ht_dump(ncc_t *ncc);
+void ht_free(ncc_t *ncc);
+void ht_status(ncc_t *ncc);
+void ht_expire_session(ncc_t *ncc);
 
 #endif /** NFEX_H */
 /** EOF */

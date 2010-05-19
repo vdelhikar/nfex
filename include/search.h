@@ -35,63 +35,69 @@
 #include <sys/types.h>
 #include <inttypes.h>
 
-typedef enum
+/** search node types */
+enum srch_nodetype
 {
     TABLE,
     COMPLETE
-} srch_nodetype_t;
+} srch_nodetype;
+typedef enum srch_nodetype srch_nodetype_t;
 
-typedef enum
+/** specifier types */
+enum spectype
 {
     HEADER,
     FOOTER
-} spectype_t;
+} spectype;
+typedef enum spectype spectype_t;
 
-typedef struct
+/** file identifier */
+struct fileid
 {
-    int id;
-    char *ext;
-    unsigned long maxlen;
-    size_t len;    /* the length of the header or footer */
-} fileid_t;
+    int id;           /* id number of search pattern */
+    char *ext;        /* file extension canonical type */
+    u_long maxlen;    /* maximum length of file */
+    size_t len;       /* the length of the HEADER or FOOTER */
+};
+typedef struct fileid fileid_t;
 
-/* srch_node_t objects represent the compiled form of a set of search keywords */
-typedef struct srch_node
+/** the compiled form of a set of search keywords */
+struct srch_node
 {
-    srch_nodetype_t nodetype;
-    spectype_t spectype;
+    srch_nodetype_t nodetype;          /* node type */
+    spectype_t spectype;               /* specifier type */
     union
     {
-        struct srch_node *table[256];
-        fileid_t fileid;
+        struct srch_node *table[256];  /* table of search node pointers */
+        fileid_t fileid;               /* or a file identifier */
     } data;
-} srch_node_t;
+};
+typedef struct srch_node srch_node_t;
 
-/* srchptr_list_t is for maintaining a list of concurrent search threads */
-typedef struct srchptr_list
+/** the list of concurrent search threads */
+struct srchptr_list
 {
-    struct srchptr_list *next;
-    struct srchptr_list *prev;
-    srch_node_t *node;
-} srchptr_list_t;
+    struct srchptr_list *next;         /* next entry in the list */
+    struct srchptr_list *prev;         /* prev entry in the list */
+    srch_node_t *node;                 /* a search node set */
+};
+typedef struct srchptr_list srchptr_list_t;
 
-typedef struct srch_results
+struct srch_results
 {
-    struct srch_results *next;
-    struct srch_results *prev;
-    fileid_t *fileid;
-    spectype_t spectype;
+    struct srch_results *next;         /* next entry in the list */
+    struct srch_results *prev;         /* prev entry in the list */
+    fileid_t *fileid;                  /* file identifier */
+    spectype_t spectype;               /* specifier type */
     struct
     {
-        int start;    /* for HEADERs */
-        int end;      /* for FOOTERs */
+        int start;                     /* for HEADERs */
+        int end;                       /* for FOOTERs */
     } offset;
-} srch_results_t;
+};
+typedef struct srch_results srch_results_t;
 
-extern srch_node_t *srch_machine;
-
-extern void compile_srch(srch_node_t **, int, char *, unsigned long, char *, 
-spectype_t);
+void search_compile(srch_node_t **, int, char *, u_long, char *, spectype_t);
 extern srch_results_t *search(srch_node_t *, srchptr_list_t **, uint8_t *, 
 size_t);
 extern void free_results_list(srch_results_t **);
