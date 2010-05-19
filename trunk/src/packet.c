@@ -70,30 +70,8 @@ const u_char *packet)
     ft.port_src = tcp->th_sport;
     ft.port_dst = tcp->th_dport;
 
-    /** look for this session in our list */
-    if (ncc->sessions)
-    {
-        ncc->session = session_find(&ft, ncc);
-    }
-
-    /** add it */
-    if (ncc->session == NULL)
-    {
-        ncc->session = session_add(&ft, ncc);
-#if (DEBUG_MODE)
-        if (ncc->flags & NFEX_DEBUG_NS)
-        {
-            fprintf(stderr, "new session: ");
-            printip(ft.ip_src, ncc);
-            report(":%d -> ", ntohs(ft.port_src));
-            printip(ft.ip_dst, ncc);
-            report(":%d\n", ntohs(ft.port_dst));
-        }
-#endif
-    }
-
-    ncc->session->last_seqnum = tcp->th_seq;
-    ncc->session->last_recvd  = time(NULL);
+    /** attempt to add this session to the session table */
+    ncc->session = ht_insert(&ft, ncc);
 
     /** pass payload to search interface to sift for our yumyums */
     results = search(ncc->srch_machine, &(ncc->session->srchptr_list), payload, 

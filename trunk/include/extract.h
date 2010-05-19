@@ -45,14 +45,15 @@ struct extract_list
     struct extract_list *next;
     struct extract_list *prev;
     fileid_t *fileid;        /* the data about the file type */
-    int fd;                  /* the file descriptor for writing too */
-    off_t nwritten;          /* The amount of data sofar written */
+    time_t timestamp;        /* update this guy everytime we touch him */
+    int fd;                  /* file descriptor to write data to file */
+    off_t nwritten;          /* number of bytes written */
     struct
     {                        /* this struct defines the area to be written */
         int start;
         int end;
     } segment;
-    int finish;             /* this mark is set when a footer is found */
+    int finish;              /* set when a FOOTER is found */
 };
 typedef struct extract_list extract_list_t;
 

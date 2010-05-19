@@ -34,13 +34,51 @@
 #include <math.h>
 
 void
-report(char *fmt, ...)
+printip(uint32_t ip, ncc_t *ncc)
 {
-    va_list args;
+    uint8_t addr[4];
+#if (HAVE_GEOIP)
+    GeoIPRecord *gir;
+#endif
 
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
+#if (HAVE_GEOIP)
+        if (((ncc->flags) & NFEX_GEOIP) && ncc->gi)
+        {
+            gir = GeoIP_record_by_ipnum(ncc->gi, ntohl(ip));
+            if (gir == NULL)
+            {
+                /** fall back on printing the IP address */
+                goto print_simple;
+            }
+            if (gir->city && gir->country_code)
+            {
+                printf("%s, %s", gir->city, gir->country_code);
+                return;
+            }
+            if (gir->city && gir->country_code == NULL)
+            {
+                printf("%s, ?", gir->city);
+                return;
+            }
+            if (gir->city == NULL && gir->country_code)
+            {
+                printf("?, %s", gir->country_code);
+                return;
+            }
+            if (gir->city == NULL && gir->country_code == NULL)
+            {
+                goto print_simple;
+            }
+        }
+#else
+        goto print_simple;
+#endif /** HAVE_GEOIP */
+
+print_simple:
+    memcpy(addr, &ip, 4);
+    printf("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+
+    return;
 }
 
 void *

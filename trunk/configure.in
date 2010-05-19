@@ -18,22 +18,25 @@ AC_MSG_CHECKING(whether to enable debugging)
 debug_default="no"
 AC_ARG_ENABLE(debug, [  --enable-debug=[no/yes] turn on debugging
                        [default=$debug_default]],, enable_debug=$debug_default)
-dnl Yes, shell scripts can be used
 if test "x$enable_debug" = "xyes"; then
          CFLAGS="$CFLAGS -ggdb -DDEBUG_MODE"
 AC_MSG_RESULT(yes)
 else
-AC_MSG_RESULT(no)
+AC_MSG_RESULT(no (to enable debugging configure with --enable-debug=yes))
 fi
 
 AC_CHECK_LIB(fl, main)
-AC_SEARCH_LIBS([pcap_open_live], [pcap])
-AC_SEARCH_LIBS([libnet_init], [net])
 AC_SEARCH_LIBS([floor], [m])
-AC_SEARCH_LIBS([event_base_new], [event], [have_libevent=yes
-               AC_DEFINE(HAVE_LIBEVENT, 1, [Define if system has libevent])])
-AC_SEARCH_LIBS([GeoIP_open], [GeoIP], [have_geoip=yes
-               AC_DEFINE(HAVE_GEOIP, 1, [Define if system has MaxMind GeoIP])])
+AC_SEARCH_LIBS([pcap_open_live], [pcap], , 
+               [AC_MSG_RESULT(pcap not found, goto: http://www.tcpdump.org)])
+AC_SEARCH_LIBS([libnet_init], [net], ,
+               [AC_MSG_RESULT(libnet not found, goto: ?)])
+AC_SEARCH_LIBS([event_base_new], [event], 
+               [AC_DEFINE(HAVE_LIBEVENT, 1, [Define if system has libevent])],
+               [AC_MSG_RESULT(libevent not found, if you want fastest possible event notification, please install: http://monkey.org/~provos/libevent/)])
+AC_SEARCH_LIBS([GeoIP_open], [GeoIP], 
+               [AC_DEFINE(HAVE_GEOIP, 1, [Define if system has MaxMind GeoIP])],
+               [AC_MSG_RESULT(MaxMind GeoIP not found, if you want GeoIP lookup, please install: http://monkey.org/~provos/libevent/)])
 AC_HEADER_STDC
 		
 AC_OUTPUT(Makefile src/Makefile include/version.h)

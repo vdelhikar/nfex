@@ -37,13 +37,14 @@
 static size_t currlen;
 
 void
-compile_srch(srch_node_t **srch_tree, int id, char *ext, unsigned long maxlen, 
+search_compile(srch_node_t **srch_tree, int id, char *ext, u_long maxlen, 
 char *spec, spectype_t type)
 {
-    int i, speclen;
-    srch_node_t *node_ptr;
+    srch_node_t *p;
+    int ch, i, speclen;
+    char c, code[3] = {'\0'};
 
-    /** length of the raw HEADER or FOOTER as specified in config file */
+    /** length of the raw HEADER or FOOTER (specifier) from config file */
     speclen = strlen(spec);
     if (speclen == 0)
     {
@@ -56,9 +57,9 @@ char *spec, spectype_t type)
         *srch_tree = new_srch_node(TABLE);
     }
 
-    i = 0;
+    i       = 0;
     currlen = 0;
-    node_ptr = *srch_tree;
+    p       = *srch_tree;
 
     /** step through the HEADER or FOOTER and process it piece by piece */
     while (i < speclen)
@@ -67,67 +68,53 @@ char *spec, spectype_t type)
         {
             if (i + 1 >= speclen)
             {
-                error("Dangling \'\\\' in file type specifier");
+                error("dangling \'\\\' in file type specifier");
             }
             switch (spec[++i])
             {
                 case '\\':
-                    node_ptr = add_simple(node_ptr, '\\', speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_simple(p, '\\', speclen - i, id, ext, maxlen, type);
                     break;
                 case 'x':
                     if (i + 2 >= speclen)
                     {
-                        error("Invalid hex code in file type specifier");
+                        error("invalid hex code in file type specifier");
                     }
-                    else
-                    {
-                        char c;
-                        int ch;
-                        char code[3] = {'\0'};
-                        code[0] = spec[++i];
-                        code[1] = spec[++i];
-                        sscanf(code, "%02x", &ch);
-                        c = (char) ch;
-                        node_ptr = add_simple(node_ptr, c, speclen - i, id, 
-                            ext, maxlen, type);
-                    }
+                    code[0] = spec[++i];
+                    code[1] = spec[++i];
+                    sscanf(code, "%02x", &ch);
+                    c = (char)ch;
+                    p = add_simple(p, c, speclen - i, id, ext, maxlen, type);
                     break;
                 case 'n':
-                    node_ptr = add_simple(node_ptr, '\n', speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_simple(p, '\n', speclen - i, id, ext, maxlen, type);
                     break;
                 case 't':
-                    node_ptr = add_simple(node_ptr, '\t', speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_simple(p, '\t', speclen - i, id, ext, maxlen, type);
                     break;
                 case 'r':
-                    node_ptr = add_simple(node_ptr, '\r', speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_simple(p, '\r', speclen - i, id, ext, maxlen, type);
                     break;
                 case '0':
-                    node_ptr = add_simple(node_ptr, '\0', speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_simple(p, '\0', speclen - i, id, ext, maxlen, type);
                     break;
                 case '?':
-                    node_ptr = add_wildcard(node_ptr, speclen - i, id, 
-                        ext, maxlen, type);
+                    p = add_wildcard(p, speclen - i, id, ext, maxlen, type);
                     break;
                 default:
-                    error("Invalid escape character in file format specifier");
+                    error("invalid escape character in file format specifier");
                     break;
             }
         }
         else
         {
-            node_ptr = add_simple(node_ptr, spec[i], speclen - i, id, ext, 
-                maxlen, type);
+            p = add_simple(p, spec[i], speclen - i, id, ext, maxlen, type);
         }
         i++;
     }
 
     /** this assumes node_ptr is pointing to a COMPLETE node */
-    node_ptr->data.fileid.len = currlen;
+    p->data.fileid.len = currlen;
 }
 
 
@@ -136,7 +123,8 @@ new_srch_node(srch_nodetype_t nodetype)
 {
     srch_node_t *p;
 
-    p           = ecalloc(sizeof (srch_node_t), 1);
+    //XXX will this break? orig code: p = ecalloc(sizeof (srch_node_t), 1);
+    p = ecalloc(1, sizeof (srch_node_t));
     p->nodetype = nodetype;
 
     return (p);
@@ -147,40 +135,40 @@ static srch_node_t *
 add_simple(srch_node_t *node, uint8_t c, int remaining, int id, char *ext, 
 unsigned long maxlen, spectype_t type)
 {
-    srch_node_t *newnode;
-    srch_node_t *retval;
+    srch_node_t *p, *q;
     
     currlen++;
 
     if (remaining == 1)
     {   
         /** if remaining is 1 then we need to point to a COMPLETE node */
-        newnode                     = new_srch_node(COMPLETE);
-        newnode->spectype           = type;
-        newnode->data.fileid.id     = id;
-        newnode->data.fileid.ext    = ext;
-        newnode->data.fileid.maxlen = maxlen;
-        node->data.table[c]         = newnode;
-        retval                      = newnode;
+        p                     = new_srch_node(COMPLETE);
+        p->spectype           = type;
+        p->data.fileid.id     = id;
+        p->data.fileid.ext    = ext;
+        p->data.fileid.maxlen = maxlen;
+        node->data.table[c]   = p;
+        q                     = p;
     }
     else if (node->data.table[c] == NULL)
     {
-        newnode             = new_srch_node(TABLE);
-        node->data.table[c] = newnode;
-        retval              = newnode;
+        p                   = new_srch_node(TABLE);
+        node->data.table[c] = p;
+        q                   = p;
     }
     else
     {
-        retval = node->data.table[c];
+        q = node->data.table[c];
     }
 
-    return (retval);
+    return (q);
 }
+
 
 static srch_node_t *
 add_wildcard(srch_node_t *node, int remaining, int id, char *ext, unsigned long maxlen, spectype_t type)
 {
-    srch_node_t *newnode;
+    srch_node_t *p;
     int i;
     
     currlen++;
@@ -188,33 +176,33 @@ add_wildcard(srch_node_t *node, int remaining, int id, char *ext, unsigned long 
     if (remaining == 1)
     {   
         /** if remaining is 1 then we need to point to a COMPLETE node */
-        newnode                     = new_srch_node(COMPLETE);
-        newnode->spectype           = type;
-        newnode->data.fileid.id     = id;
-        newnode->data.fileid.ext    = ext;
-        newnode->data.fileid.maxlen = maxlen;
+        p                     = new_srch_node(COMPLETE);
+        p->spectype           = type;
+        p->data.fileid.id     = id;
+        p->data.fileid.ext    = ext;
+        p->data.fileid.maxlen = maxlen;
         for (i = 0; i < 256; i++)
         {
             /** a specific char trumps a wildcard */
             if (node->data.table[i] == NULL)
             {
                 /** shhh, that indicates a slight "feature" */
-                node->data.table[i] = newnode;  
+                node->data.table[i] = p;  
             }
         }
-        return (newnode);
+        return (p);
     }
     else
     {
-        newnode = new_srch_node(TABLE);
+        p = new_srch_node(TABLE);
         for (i = 0; i < 256; i++)
         {
             if (node->data.table[i] == NULL)
             {
-                node->data.table[i] = newnode;
+                node->data.table[i] = p;
             }
         }
-        return (newnode);
+        return (p);
     }
 }
 
@@ -226,56 +214,59 @@ srch_results_t *
 search(srch_node_t *tree, srchptr_list_t **srchptr_list, uint8_t *buf, 
 size_t len)
 {
-    srch_results_t *retval = NULL;
+    srch_results_t *p;
     int i;
     
     /** called once for every byte of data in the payload */
-    for (i = 0; i < len; i++)
+    for (p = NULL, i = 0; i < len; i++)
     {
         /** can this be optimized, can we run on blocks of data? */
-        update_search(tree, srchptr_list, &retval, buf[i], i); 
+        update_search(tree, srchptr_list, &p, buf[i], i); 
     }
 
-    return (retval);
+    return (p);
 }
 
 static void
 add_srchptr(srchptr_list_t **srchptr_list, srch_node_t *node)
 {
-    srchptr_list_t *ptr, *ptr2;
-    
-    ptr = ecalloc(1, sizeof (srchptr_list_t));
-    ptr->next = *srchptr_list;
+    srchptr_list_t *p, *q;
 
-    if (ptr->next)
+    p = ecalloc(1, sizeof (srchptr_list_t));
+
+    /** make this guy the front of the list */
+    p->next = *srchptr_list;
+
+    if (p->next)
     {
-        ptr->next->prev = ptr;
+        /** fix pointer linkage */
+        p->next->prev = p;
     }
-    ptr->node = node;
-    *srchptr_list = ptr;
+    p->node       = node;
+    *srchptr_list = p;
 
-    for (ptr2 = ptr->next; ptr2 && ptr2 != ptr; ptr2 = ptr2->next);
+    //for (q = p->next; q && q != p; q = q->next) ;
 }
 
 static void
-remv_srchptr(srchptr_list_t **srchptr_list, srchptr_list_t *sptr)
+remv_srchptr(srchptr_list_t **srchptr_list, srchptr_list_t *p)
 {
-    if (sptr->prev)
+    if (p->prev)
     {
-        sptr->prev->next = sptr->next;
+        p->prev->next = p->next;
     }
 
-    if (sptr->next)
+    if (p->next)
     {
-        sptr->next->prev = sptr->prev;
+        p->next->prev = p->prev;
     }
 
-    if (*srchptr_list == sptr)
+    if (*srchptr_list == p)
     {
-        *srchptr_list = sptr->next;
+        *srchptr_list = p->next;
     }
 
-    free(sptr);
+    free(p);
 }
 
 /*
@@ -294,11 +285,13 @@ static void
 update_search(srch_node_t *tree, srchptr_list_t **srchptr_list, 
 srch_results_t **results, uint8_t c, int offset)
 {
+    srch_node_t *node;
+    srchptr_list_t *ptr;
+    srchptr_list_t *nxt;
+
     if (*srchptr_list)
     {   
         /** start by updating existing threads */
-        srchptr_list_t *ptr;
-        srchptr_list_t *nxt;
         for (ptr = *srchptr_list; ptr; ptr = nxt)
         {
             nxt = ptr->next;
@@ -330,8 +323,7 @@ srch_results_t **results, uint8_t c, int offset)
     /** now see if we want to start a new thread (i.e. a new potential match) */
     if (tree->data.table[c])
     {
-        srch_node_t *node = tree->data.table[c];
-
+        node = tree->data.table[c];
         switch (node->nodetype)
         {
             case TABLE:
@@ -339,10 +331,7 @@ srch_results_t **results, uint8_t c, int offset)
                 add_srchptr(srchptr_list, node);
                 break;
             case COMPLETE:
-                /* In the unlikely event of a one byte header */
-                /* note to all ideots: if you carve for a one byte header,
-                 * you deserve the enormous flood of files that will spew forth.
-                 */
+                /** In the unlikely event of a one byte header */
                 add_result(results, &node->data.fileid, node->spectype, offset);
                 break;
             default:
@@ -441,9 +430,6 @@ srch_results_t **results, uint8_t c, int offset)
             ptr->node = node;
             break;
         case COMPLETE:       /* In the unlikely event of a one byte header */
-            /* note to all ideots: if you carve for a one byte header,
-             * you deserve the enormous flood of files that will spew forth.
-             */
             add_result(results, &node->data.fileid, node->spectype, offset);
             break;
         default:
