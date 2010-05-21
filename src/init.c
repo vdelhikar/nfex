@@ -13,10 +13,9 @@ extern FILE *yyin;
 
 ncc_t *
 control_context_init(char *output_dir, char *yyinfname, char *device, 
-char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
+char *capfname, char *geoip_data, char *bpf, u_int16_t flags, char *errbuf)
 {
     int n;
-    char *filter;
     ncc_t *ncc;
     struct rlimit rl;
     struct termios term;
@@ -142,17 +141,16 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
     }
 
     /** compile and apply the filter */
-    filter = NFEX_PCAP_FILTER;
-    if (pcap_compile(ncc->p, &filter_program, filter, 0, net) == -1)
+    if (pcap_compile(ncc->p, &filter_program, bpf, 0, net) == -1)
     {
-        fprintf(stderr, "can't parse filter %s: %s\n", filter,
+        fprintf(stderr, "can't parse filter %s: %s\n", bpf,
             pcap_geterr(ncc->p));
         goto err;
     }
 
     if (pcap_setfilter(ncc->p, &filter_program) == -1)
     {
-        fprintf(stderr, "can't install filter %s: %s\n", filter,
+        fprintf(stderr, "can't install filter %s: %s\n", bpf,
             pcap_geterr(ncc->p));
        goto err;
     }
@@ -241,7 +239,7 @@ char *capfname, char *geoip_data, u_int16_t flags, char *errbuf)
         printf("pcap file:\t%s\n", ncc->capfname);
         printf("pcap filesize:\t%lld bytes\n", ncc->capfsize); 
     }
-    printf("pcap filter:\t%s\n", filter);
+    printf("pcap filter:\t%s\n", bpf);
     printf("index file:\t%s\n", ncc->indexfname);
 #if (HAVE_GEOIP)
     printf("geoIP database:\t%s\n", ncc->geoip_data);

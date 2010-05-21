@@ -127,8 +127,8 @@ void process_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 void quit_signal(int);
 
 /** initialization functions */
-ncc_t *control_context_init(char *, char *, char *, char *, char *, uint16_t, 
-char *);
+ncc_t *control_context_init(char *, char *, char *, char *, char *, char *,
+uint16_t, char *);
 void control_context_destroy(ncc_t *);
 
 /** main loop functions */

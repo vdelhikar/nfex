@@ -11,13 +11,14 @@
 
 #include "nfex.h"
 #include "config.h"
+#include "util.h"
 
 int
 main(int argc, char *argv[])
 {
-    int c;
+    int c, n;
     ncc_t *ncc;
-    char *device;
+    char *device, *p;
     u_int16_t flags;
     char capfname[128];
     char yyinfname[128];
@@ -25,6 +26,7 @@ main(int argc, char *argv[])
     char geoip_data[128];
 #endif /** HAVE_GEOIP */
     char output_dir[128];
+    char bpf[128];
     char errbuf[PCAP_ERRBUF_SIZE];
 
     if (argc == 1)
@@ -34,6 +36,7 @@ main(int argc, char *argv[])
 
     flags = 0;
     device = NULL;
+    memset(bpf,        0, sizeof (bpf));
     memset(capfname,   0, sizeof (capfname));
     memset(yyinfname,  0, sizeof (yyinfname));
     memset(output_dir, 0, sizeof (output_dir));
@@ -92,21 +95,16 @@ main(int argc, char *argv[])
         }
     }
 
-    if (optind < argc)
-    {
-        if (!device)
-        {
-            device = argv[optind];
-        }
-    }
+    p = bpf;
+    build_bpf_filter(&argv[optind], &p);
 
     printf("nfex - realtime network file extraction engine\n");
 #if (HAVE_GEOIP)
     ncc = control_context_init(output_dir, yyinfname, device, capfname, 
-            geoip_data, flags, errbuf);
+            geoip_data, bpf, flags, errbuf);
 #else
     ncc = control_context_init(output_dir, yyinfname, device, capfname, 
-            NULL, flags, errbuf);
+            NULL, bpf, flags, errbuf);
 #endif /** HAVE_GEOIP */
 
     if (ncc == NULL)
@@ -129,10 +127,10 @@ main(int argc, char *argv[])
 void
 usage(char *progname)
 {
-    printf("Usage: %s [OPTIONS] [[-d <DEVICE>] || [-f <FILE>]]\n"
-           "  -f <FILE>       specify an input capture file\n"
-           "  -d <DEVICE>     to specify a network device\n"
-           "  -c <FILE>       specify config file\n"
+    printf("Usage: %s [options] [[-D <device>] || [-F <file>]] [expression]\n"
+           "  -f <file>       specify an input capture file\n"
+           "  -d <device>     to specify a network device\n"
+           "  -c <file>       specify configuration file\n"
 #if (HAVE_GEOIP)
            "  -G              specify path to MaxMind geoIP database\n"
            "  -g              toggle geoIP mode on\n"
@@ -140,7 +138,8 @@ usage(char *progname)
            "  -o <DIRECTORY>  dump files here instead of cwd\n"
            "  -V              display the version number\n"
            "  -v              toggle verbose mode on\n"
-           "  -h              this\n", progname);
+           "  -h              this\n"
+           "  expression is a bpf filter ala tcpdump / pcap\n", progname);
     exit(1);    
 }
 

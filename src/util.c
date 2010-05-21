@@ -141,4 +141,36 @@ u_int32_t *s)
     *s -= 60 * (*m);
 }
 
+/** modified from tcpdump.c */
+void
+build_bpf_filter(register char **argv, char **buf)
+{
+    register char **p;
+    register u_int len = 0;
+    char *src, *dst;
+
+    p = argv;
+    if (*p == 0)
+    {
+        /** our default filter of "tcp" */
+        strncpy(*buf, NFEX_PCAP_FILTER, 127);
+        return;
+    }
+
+    /** bpf filter specified at commmand line, process tokenized input */
+    while (*p)
+    {
+        len += strlen(*p++) + 1;
+    }
+    p = argv;
+    dst = *buf;
+    while ((src = *p++))
+    {
+        while ((*dst++ = *src++) != '\0');
+        dst[-1] = ' ';
+    }
+    dst[-1] = '\0';
+}
+
+
 /** EOF */
