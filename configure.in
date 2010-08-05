@@ -36,7 +36,7 @@ AC_SEARCH_LIBS([event_base_new], [event],
                [AC_MSG_RESULT(libevent not found, if you want fastest possible event notification, please install: http://monkey.org/~provos/libevent/)])
 AC_SEARCH_LIBS([GeoIP_open], [GeoIP], 
                [AC_DEFINE(HAVE_GEOIP, 1, [Define if system has MaxMind GeoIP])],
-               [AC_MSG_RESULT(MaxMind GeoIP not found, if you want GeoIP lookup, please install: http://monkey.org/~provos/libevent/)])
+               [AC_MSG_RESULT(MaxMind GeoIP not found, if you want GeoIP lookup, please install: http://www.maxmind.com/app/geolitecity)])
 AC_HEADER_STDC
 		
 AC_OUTPUT(Makefile src/Makefile include/version.h)

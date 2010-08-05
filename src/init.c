@@ -237,7 +237,7 @@ char *capfname, char *geoip_data, char *bpf, u_int16_t flags, char *errbuf)
     else
     {
         printf("pcap file:\t%s\n", ncc->capfname);
-        printf("pcap filesize:\t%lld bytes\n", ncc->capfsize); 
+        printf("pcap filesize:\t%zu bytes\n", ncc->capfsize); 
     }
     printf("pcap filter:\t%s\n", bpf);
     printf("index file:\t%s\n", ncc->indexfname);

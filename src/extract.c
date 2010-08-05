@@ -89,31 +89,63 @@ static void
 add_extract(extract_list_t **elist, fileid_t *fileid, ht_node_t *session, 
 int offset, int size, ncc_t *ncc)
 {
+    int n;
+    char *q;
     extract_list_t *p;
+    char fname[FILENAME_BUFFER_SIZE] = {'\0'};
 
-    /* add a new entry to the list */
-    p = ecalloc(1, sizeof *p);
-    p->next = *elist;
-    p->fileid = fileid;
+
+    /** open the file descriptor that we'll extract into */
+    q = fname;
+    n = open_extract(fileid->ext, session->ft.ip_src, session->ft.port_src,
+            session->ft.ip_dst, session->ft.port_dst, &q, ncc);
+    if (n == -1)
+    {
+        if (ncc->flags & NFEX_VERBOSE)
+        {
+            fprintf(stderr, "error extracting \"%s\" (", fileid->ext);
+            fprintip(stderr, session->ft.ip_src, ncc);
+            fprintf(stderr, ":%d -> ", ntohs(session->ft.port_src));
+            fprintip(stderr, session->ft.ip_dst, ncc);
+            fprintf(stderr, ":%d) to %s\n", ntohs(session->ft.port_dst), fname);
+        }
+        else
+        {
+            fprintf(stderr, "error extracting \"%s\" file\n", fileid->ext);
+        }
+        /** flag for removal */
+        //p->finish++;
+        return;
+    }
+    if (ncc->flags & NFEX_VERBOSE)
+    {
+        fprintf(stdout, "extracting \"%s\" (", fileid->ext);
+        fprintip(stdout, session->ft.ip_src, ncc);
+        fprintf(stdout, ":%d -> ", ntohs(session->ft.port_src));
+        fprintip(stdout, session->ft.ip_dst, ncc);
+        fprintf(stdout, ":%d) to %s\n", ntohs(session->ft.port_dst), fname);
+    }
+    ncc->stats.total_files++;
+
+    /** add new entry to the front extract linked list */
+    p = malloc(sizeof (*p));
+    if (p == NULL)
+    {
+        fprintf(stderr, "malloc(): %s\n", strerror(errno));
+        return;
+    }
+    memset(p, 0, sizeof (*p));
+
+    p->next      = *elist;
+    p->fileid    = fileid;
+    p->timestamp = time(NULL);
+    p->fd        = n;
     if (p->next)
     {
         p->next->prev = p;
     }
 
-    if (ncc->flags & NFEX_VERBOSE)
-    {
-        printf("extracting \"%s\" (", fileid->ext);
-        printip(session->ft.ip_src, ncc);
-        printf(":%d -> ", ntohs(session->ft.port_src));
-        printip(session->ft.ip_dst, ncc);
-        printf(":%d), to ", ntohs(session->ft.port_dst));
-    }
-    p->fd = open_extract(fileid->ext, session->ft.ip_src, session->ft.port_src,
-            session->ft.ip_dst, session->ft.port_dst, ncc);
-    p->timestamp = time(NULL);
-    ncc->stats.total_files++;
     p->segment.start = offset;
-
     if (fileid->maxlen <= size - offset)
     {
         p->segment.end = offset + fileid->maxlen;
@@ -128,24 +160,27 @@ int offset, int size, ncc_t *ncc)
 /** open the next availible filename for writing */
 static int 
 open_extract(char *ext, uint32_t src_ip, uint16_t src_prt, uint32_t dst_ip, 
-uint16_t dst_prt, ncc_t *ncc)
+uint16_t dst_prt, char **fname, ncc_t *ncc)
 {
     int n;
     uint8_t ip_addr_s[4], ip_addr_d[4];
     struct tm *time_machine;
-    char fname[FILENAME_BUFFER_SIZE] = {'\0'}, timestamp[50] = {'\0'};
+    char timestamp[50] = {'\0'};
 
+    /** build file name */
     ncc->filenum++;
-    snprintf(fname, FILENAME_BUFFER_SIZE, "%s%d-%06d.%s", 
+    snprintf(*fname, FILENAME_BUFFER_SIZE, "%s%d-%06d.%s", 
         ncc->output_dir == NULL ? "" : ncc->output_dir, 
         getpid(), ncc->filenum, ext);
 
-    n = open(fname, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
-    /** need to catch error */
-
-    if (ncc->flags & NFEX_VERBOSE)
+    /** open file */
+    n = open(*fname, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
+    if (n == -1)
     {
-        printf("%s\n", fname);
+        fprintf(stderr, "error opening file: %s: %s\n", *fname, 
+            strerror(errno));
+        ncc->stats.extraction_errors++;
+        return (-1);
     }
 
     /** write out details to index file */
@@ -232,15 +267,13 @@ extract_segment(extract_list_t *p, const uint8_t *data, ncc_t *ncc)
         fprintf(stderr, "error writing fd: %d, wrote %ld of %ld bytes: %s\n", 
             p->fd, c, nbytes, strerror(errno));
         ncc->stats.extraction_errors++;
-        /** previously hard quit here; will this have sideeffects? */
-        /** add a flag to let higher logic know to bail on this one */
         return; 
     }
     p->nwritten += nbytes;
     sync();
 }
 
-/* remove all finished extracts from the list */
+/** remove all finished extracts from the list */
 static void
 sweep_extract_list(extract_list_t **elist)
 {
@@ -253,7 +286,8 @@ sweep_extract_list(extract_list_t **elist)
         /** remove all finished or expired extracts */
         if (p->finish || (now - p->timestamp >= SESSION_THRESHOLD))
         {
-if ((now - p->timestamp >= SESSION_THRESHOLD)) fprintf(stderr, "AHA!\n");
+//if ((now - p->timestamp >= SESSION_THRESHOLD)) fprintf(stderr, "******************expire\n");
+//if (p->finish) fprintf(stderr, "*************finish\n");
             if (p->prev)
             {
                 p->prev->next = p->next;

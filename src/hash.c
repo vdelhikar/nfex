@@ -73,16 +73,16 @@ ht_insert(four_tuple_t *ft, ncc_t *ncc)
         /** update ht stats: longest chain */
         ncc->stats.ht_lc = j > ncc->stats.ht_lc ? j : ncc->stats.ht_lc;
     }
-#if 0
+
     if (ncc->flags & NFEX_DEBUG)
     {
-        printf("new session: ");
-        printip(ft->ip_src, ncc);
-        printf(":%d -> ", ntohs(ft->port_src));
-        printip(ft->ip_dst, ncc);
-        printf(":%d\n", ntohs(ft->port_dst));
+        fprintf(stderr, "new session: ");
+        fprintip(stderr, ft->ip_src, ncc);
+        fprintf(stderr, ":%d -> ", ntohs(ft->port_src));
+        fprintip(stderr, ft->ip_dst, ncc);
+        fprintf(stderr, ":%d\n", ntohs(ft->port_dst));
     }
-#endif
+
     /** update ht stats: total entries */
     ncc->stats.ht_entries++;
     return (p);
@@ -146,11 +146,11 @@ ht_dump(ncc_t *ncc)
     {
         for (p = ncc->ht[n]; p; p = p->next)
         {
-            printip(p->ft.ip_src, ncc);
-            printf(":%d -> ", ntohs(p->ft.port_src));
-            printip(p->ft.ip_dst, ncc);
-            printf(":%d ", ntohs(p->ft.port_dst));
-            printf("%lds\n", now - p->timestamp);
+            fprintip(stdout, p->ft.ip_src, ncc);
+            fprintf(stdout, ":%d -> ", ntohs(p->ft.port_src));
+            fprintip(stdout, p->ft.ip_dst, ncc);
+            fprintf(stdout, ":%d ", ntohs(p->ft.port_dst));
+            fprintf(stdout, "%lds\n", now - p->timestamp);
 
         }
     }
