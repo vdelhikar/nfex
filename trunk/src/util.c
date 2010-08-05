@@ -34,7 +34,7 @@
 #include <math.h>
 
 void
-printip(uint32_t ip, ncc_t *ncc)
+fprintip(FILE *stream, uint32_t ip, ncc_t *ncc)
 {
     uint8_t addr[4];
 #if (HAVE_GEOIP)
@@ -52,17 +52,17 @@ printip(uint32_t ip, ncc_t *ncc)
             }
             if (gir->city && gir->country_code)
             {
-                printf("%s, %s", gir->city, gir->country_code);
+                fprintf(stream, "%s, %s", gir->city, gir->country_code);
                 return;
             }
             if (gir->city && gir->country_code == NULL)
             {
-                printf("%s, ?", gir->city);
+                fprintf(stream, "%s, ?", gir->city);
                 return;
             }
             if (gir->city == NULL && gir->country_code)
             {
-                printf("?, %s", gir->country_code);
+                fprintf(stream, "?, %s", gir->country_code);
                 return;
             }
             if (gir->city == NULL && gir->country_code == NULL)
@@ -76,7 +76,7 @@ printip(uint32_t ip, ncc_t *ncc)
 
 print_simple:
     memcpy(addr, &ip, 4);
-    printf("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+    fprintf(stream, "%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
 
     return;
 }

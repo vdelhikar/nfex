@@ -32,8 +32,10 @@
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 #include <termios.h>
 #include "hash.h"
 #include "config.h"
@@ -179,9 +181,9 @@ static void set_segment_marks(extract_list_t *, size_t);
 static void mark_footer(extract_list_t *, srch_results_t *);
 static void extract_segment(extract_list_t *, const uint8_t *, ncc_t *);
 static void sweep_extract_list(extract_list_t **);
-static  int open_extract(char *, uint32_t src_ip, uint16_t src_prt, 
-                         uint32_t dst_ip, uint16_t dst_prt, ncc_t *);
-void printip(uint32_t ip, ncc_t *ncc);
+static  int open_extract(char *ext, uint32_t src_ip, uint16_t src_prt, 
+                         uint32_t dst_ip, uint16_t dst_prt, char **fname,
+                         ncc_t *);
 void extract(extract_list_t **elist, srch_results_t *results, 
              ht_node_t *session, const uint8_t *data, size_t size, ncc_t *ncc);
 

@@ -41,6 +41,6 @@ extern void report(char *, ...);
 extern void *emalloc(size_t);
 extern void *ecalloc(size_t, size_t);
 void build_bpf_filter(register char **argv, char **buf);
-
+void fprintip(FILE *stream, uint32_t ip, ncc_t *ncc);
 
 #endif /* UTIL_H */

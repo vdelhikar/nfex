@@ -10,7 +10,6 @@
 
 #include "nfex.h" 
 #include "config.h"
-#include <event.h>
 
 int
 the_game(ncc_t *ncc)
@@ -21,6 +20,12 @@ the_game(ncc_t *ncc)
     /** file extraction */
     for (j = 0; ncc->capfname[1]; j++)
     {
+        /*  
+         * Not truly asynch as control will not be passed from pcap_dispatch
+         * if a packet matching the filter is not found... This means the
+         * program will block here (in file mode) if no packets match the 
+         * filter that was specified at the command line.
+         */
         c = pcap_dispatch(ncc->p, 100, process_packet, (uint8_t *)ncc);
         /** hand the keypress off be processed */
         switch (process_keypress(ncc))

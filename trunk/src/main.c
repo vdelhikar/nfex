@@ -95,6 +95,7 @@ main(int argc, char *argv[])
         }
     }
 
+    /** build bpf filter string, if arguments remain, use that. */
     p = bpf;
     build_bpf_filter(&argv[optind], &p);
 
